@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 105" fill="none">
+  <defs>
+    <linearGradient id="lg" x1="0.25" y1="0" x2="0.65" y2="1">
+      <stop offset="0%"   stop-color="#2590F6"/>
+      <stop offset="100%" stop-color="#0B46A8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left outer column — full height, diagonal inner-top edge -->
+  <polygon fill="url(#lg)" points="2,104 2,27 18,16 18,104"/>
+
+  <!-- Left inner spire — thin, tall -->
+  <rect fill="url(#lg)" x="28" y="2"  width="10" height="56"/>
+
+  <!-- Crossbar — bridges gap between outer column inner edges -->
+  <rect fill="url(#lg)" x="18" y="58" width="44" height="12"/>
+
+  <!-- Right inner spire — thin, tall -->
+  <rect fill="url(#lg)" x="42" y="2"  width="10" height="56"/>
+
+  <!-- Right outer column — full height, diagonal inner-top edge -->
+  <polygon fill="url(#lg)" points="78,104 78,27 62,16 62,104"/>
+
+  <!-- Teal entrance door -->
+  <rect fill="#00C8CC" x="33" y="84" width="14" height="20"/>
+</svg>
