@@ -299,11 +299,11 @@ function renderLayout(contentFn) {
         </div>
         <div class="topbar-roles">${roleButtons}</div>
         <div class="topbar-user">
-          <div class="avatar avatar--${avatarCls}">${initials}</div>
           <div class="topbar-user-text">
             <span style="font-weight:600;color:var(--text);font-size:12.5px">${userName}</span>
             <span style="font-size:11px">${userUnit}</span>
           </div>
+          <div class="avatar avatar--${avatarCls}">${initials}</div>
         </div>
       </header>
       <div class="body-wrap">
