@@ -79,6 +79,7 @@ body {
   display: flex; align-items: center; gap: 10px;
   font-weight: 300; font-size: 18px;
   color: var(--accent-h); letter-spacing: 1.5px;
+  width: 200px; flex-shrink: 0;
 }
 
 .topbar-brand-icon {
@@ -113,7 +114,16 @@ body {
 
 .topbar-user {
   display: flex; align-items: center; gap: 8px;
-  font-size: 12.5px; color: var(--text-2); flex-shrink: 0;
+  font-size: 12.5px; color: var(--text-2);
+  width: 200px; flex-shrink: 0; justify-content: flex-end;
+  overflow: hidden;
+}
+.topbar-user-text {
+  display: flex; flex-direction: column; line-height: 1.25;
+  min-width: 0; overflow: hidden;
+}
+.topbar-user-text span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 .avatar {
