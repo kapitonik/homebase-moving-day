@@ -1,142 +1,174 @@
-// ── Building-Wide Event Data ───────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  HomeBase — Resident & Property Operations Platform
+//  Vanilla JS SPA · No framework · No build step
+// ─────────────────────────────────────────────────────────────
 
+/* ─── Building Event Data ─── */
 const BUILDING_EVENTS = {
-  '2026-03-20': [{ type: 'maintenance', title: 'HVAC Maintenance', desc: 'Lobby & corridors', time: '9am–1pm', timeH: 9, dur: 4, icon: '🔧', color: 'orange' }],
-  '2026-03-25': [{ type: 'movein', title: 'Move-in: Unit 7A', desc: 'Maria Santos', time: '8am–11am', timeH: 8, dur: 3, icon: '📦', color: 'blue' }],
-  '2026-03-26': [{ type: 'movein', title: 'Move-in: Unit 11F', desc: 'James Lee', time: '11am–2pm', timeH: 11, dur: 3, icon: '📦', color: 'blue' }],
+  '2026-03-20': [{ type:'maintenance', title:'HVAC Maintenance',    desc:'Lobby & corridors',        time:'9am–1pm',  timeH:9,  dur:4, color:'orange' }],
+  '2026-03-25': [{ type:'movein',      title:'Move-in: Unit 7A',   desc:'Maria Santos',              time:'8am–11am', timeH:8,  dur:3, color:'blue'   }],
+  '2026-03-26': [{ type:'movein',      title:'Move-in: Unit 11F',  desc:'James Lee · Floor 11',      time:'11am–2pm', timeH:11, dur:3, color:'blue'   }],
   '2026-03-28': [
-    { type: 'movein', title: 'Move-in: Unit 14B ★', desc: 'Alex Johnson · Floor 14', time: '8am–11am', timeH: 8, dur: 3, icon: '📦', color: 'indigo' },
-    { type: 'movein', title: 'Move-in: Unit 3B', desc: 'Chris Park', time: '11am–2pm', timeH: 11, dur: 3, icon: '📦', color: 'yellow' }
+    { type:'movein',      title:'Move-in: Unit 14B ★', desc:'Alex Johnson · Floor 14',    time:'8am–11am', timeH:8,  dur:3, color:'indigo' },
+    { type:'movein',      title:'Move-in: Unit 3B',    desc:'Chris Park',                  time:'11am–2pm', timeH:11, dur:3, color:'yellow' },
   ],
-  '2026-03-30': [{ type: 'movein', title: 'Move-in: Unit 22C', desc: 'David Kim', time: '8am–11am', timeH: 8, dur: 3, icon: '📦', color: 'blue' }],
-  '2026-04-01': [{ type: 'movein', title: 'Move-in: Unit 5D', desc: 'Emma Wilson', time: 'TBD', timeH: -1, dur: 3, icon: '📦', color: 'gray' }],
-  '2026-04-05': [{ type: 'event', title: 'Community Meeting', desc: 'Building Meeting Room B', time: '7:00 PM', timeH: 19, dur: 1, icon: '🏘️', color: 'green' }],
+  '2026-03-30': [{ type:'movein',      title:'Move-in: Unit 22C',  desc:'David Kim · Floor 22',      time:'2pm–5pm',  timeH:14, dur:3, color:'purple' }],
+  '2026-04-01': [
+    { type:'movein',      title:'Move-in: Unit 5D',    desc:'Emma Wilson',                  time:'8am–11am', timeH:8,  dur:3, color:'green' },
+    { type:'maintenance', title:'Lobby Renovation',    desc:'Phase 2 starts',               time:'8am–6pm',  timeH:8,  dur:10,color:'red'   },
+  ],
 };
 
+/* ─── Booking Checklist ─── */
 const BOOKING_CHECKLIST = [
-  { id: 'coi',      required: true,  label: 'Certificate of Insurance (COI) approved',   hint: 'Required by building management before access',      check: s => s.movingin.coi.status === 'approved' },
-  { id: 'deposit',  required: true,  label: 'Security deposit cleared',                   hint: 'Confirmed with the building office',                  check: () => true },
-  { id: 'movers',   required: false, label: 'Moving company or self-move arranged',       hint: 'Professional movers required for items over 100 lbs', check: () => false },
-  { id: 'utilities',required: false, label: 'Utilities transfer initiated',                hint: 'At least one service set up or in progress',          check: s => s.movingin.utilities.electric.status !== 'not_started' },
-  { id: 'keys',     required: false, label: 'Key pickup appointment scheduled',            hint: 'Arrange with building office (Mon–Fri, 9am–5pm)',     check: () => false },
-  { id: 'parking',  required: false, label: 'Moving truck parking/loading dock arranged',  hint: 'West-side loading dock or street permit',             check: () => false },
+  { id:'coi',      required:true,  label:'Certificate of Insurance approved',      check: s => s.movingin.coi.status === 'approved' },
+  { id:'deposit',  required:true,  label:'Security deposit cleared',               check: ()=> true },
+  { id:'movers',   required:false, label:'Moving company or self-move arranged',   check: ()=> false },
+  { id:'utilities',required:false, label:'Utilities setup initiated',              check: s => s.movingin.utilities.electric.status !== 'not_started' },
+  { id:'keys',     required:false, label:'Key pickup appointment scheduled',       check: ()=> false },
+  { id:'parking',  required:false, label:'Moving truck parking arranged',          check: ()=> false },
 ];
 
-// ── State ──────────────────────────────────────────────────────────────────
+/* ─── Providers (no gas — all-electric high-rise) ─── */
+const PROVIDERS = {
+  electric: ['ConEd', 'National Grid', 'Direct Energy'],
+  internet: ['Xfinity', 'Verizon Fios', 'RCN'],
+};
 
+/* ─── Building Floor Data (deterministic, no Math.random) ─── */
+function seededFloat(n) {
+  const x = Math.sin(n * 9.301 + 0.1) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+const FIRST_NAMES = ['Rachel','James','Diana','Sam','Olivia','Noah','Ava','Liam','Isabella','Ethan',
+  'Mia','Alexander','Charlotte','Benjamin','Amelia','Lucas','Harper','Mason','Evelyn','Logan',
+  'Aria','Jackson','Luna','Aiden','Layla','Carter','Riley','Sebastian','Zoey','Jack',
+  'Penelope','Owen','Lily','Sophie','Emma','Sofia','Michael','Jennifer','Daniel','Natalie'];
+const LAST_NAMES  = ['Kim','Park','Torres','Patel','Chen','Williams','Martinez','Johnson','Lee','Brown',
+  'Davis','Wilson','Taylor','Anderson','Thomas','Jackson','White','Harris','Martin','Garcia',
+  'Thompson','Robinson','Lewis','Walker','Hall','Allen','Young','King','Wright','Scott',
+  'Green','Baker','Rodriguez','Turner','Phillips','Evans'];
+
+function seededName(seed) {
+  const fi = Math.floor(seededFloat(seed * 2.7)  * FIRST_NAMES.length);
+  const li = Math.floor(seededFloat(seed * 3.13) * LAST_NAMES.length);
+  return `${FIRST_NAMES[fi]} ${LAST_NAMES[li]}`;
+}
+
+const KNOWN_UNITS = {
+  '14A': { name:'Sarah Chen',    status:'occupied',  since:'Jan 2024' },
+  '14B': { name:'Alex Johnson',  status:'moving-in', moveIn:'Mar 28' },
+  '14C': { name:null,            status:'vacant' },
+  '14D': { name:'Marcus Webb',   status:'occupied',  since:'Mar 2023' },
+  '14E': { name:'Jennifer Walsh',status:'occupied',  since:'Aug 2023' },
+  '14F': { name:'Robert Tanaka', status:'occupied',  since:'Dec 2023' },
+  '7A':  { name:'Maria Santos',  status:'moving-in', moveIn:'Mar 25' },
+  '7B':  { name:'Linda Park',    status:'occupied',  since:'Jun 2023' },
+  '7C':  { name:'David Chen',    status:'occupied',  since:'Sep 2023' },
+  '7D':  { name:null,            status:'vacant' },
+  '7E':  { name:'Sofia Reyes',   status:'occupied',  since:'Feb 2024' },
+  '7F':  { name:null,            status:'vacant' },
+  '11F': { name:'James Lee',     status:'moving-in', moveIn:'Mar 26' },
+  '22C': { name:'David Kim',     status:'moving-in', moveIn:'Mar 30' },
+  '3B':  { name:'Chris Park',    status:'moving-in', moveIn:'Mar 28' },
+  '5D':  { name:'Emma Wilson',   status:'moving-in', moveIn:'Apr 1' },
+};
+
+const BUILDING_FLOORS = (function() {
+  const LETTERS = ['A','B','C','D','E','F'];
+  const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Sep','Oct','Nov'];
+  const floors  = {};
+  for (let f = 1; f <= 24; f++) {
+    const fu = {};
+    for (let li = 0; li < 6; li++) {
+      const letter = LETTERS[li];
+      const uid    = `${f}${letter}`;
+      if (KNOWN_UNITS[uid]) { fu[uid] = Object.assign({}, KNOWN_UNITS[uid]); continue; }
+      const seed = f * 6 + li;
+      const r    = seededFloat(seed);
+      if (r < 0.76) {
+        const mo  = MONTHS[Math.floor(seededFloat(seed + 100) * MONTHS.length)];
+        const yr  = seededFloat(seed + 200) > 0.5 ? '2024' : '2023';
+        fu[uid] = { name: seededName(seed), status:'occupied', since:`${mo} ${yr}` };
+      } else {
+        fu[uid] = { name:null, status:'vacant' };
+      }
+    }
+    floors[f] = fu;
+  }
+  return floors;
+})();
+
+/* ─── Application State ─── */
 const state = {
-  role: 'movingin', // 'movingin' | 'current' | 'staff'
-
-  movingInScreen:       'dashboard', // dashboard | coi | elevator | utilities
-  currentResidentScreen:'feed',      // feed | calendar | settings
-  staffScreen:          'dashboard', // dashboard | coi-review | schedule | residents
+  role: 'movingin',
+  movingInScreen:        'dashboard',
+  currentResidentScreen: 'feed',
+  staffScreen:           'dashboard',
 
   movingin: {
-    name: 'Alex Johnson',
-    unit: '14B',
-    building: 'The Meridian',
-    moveInDate: 'March 28, 2026',
-    daysUntil: 19,
-    coi: { status: 'under_review', fileName: 'AlexJohnson_StateFarm_COI.pdf', uploadedAt: 'March 9, 2026' },
-    elevator: { status: 'booked', date: 'March 28, 2026', slot: '8am–11am', elevator: 'Service Elevator A', confirmationCode: 'ELV-20260328-14B' },
+    name:'Alex Johnson', unit:'14B', building:'The Meridian', floor:14,
+    moveInDate:'March 28, 2026',
+    coi:      { status:'under_review', fileName:'Certificate_of_Insurance_2026.pdf', uploadedAt:'Mar 22, 2026' },
+    elevator: { status:'booked', date:'Mar 28, 2026', slot:'8am–11am', confirmNum:'ELV-2847' },
     utilities: {
-      electric: { status: 'complete',    provider: 'ConEd',   accountNum: 'CON-***8821' },
-      gas:      { status: 'not_started', provider: null },
-      internet: { status: 'scheduled',   provider: 'Xfinity', scheduledDate: 'March 27' }
-    }
+      electric: { status:'complete',  provider:'ConEd',   accountNum:'CON-847291' },
+      internet: { status:'scheduled', provider:'Xfinity', scheduledDate:'Mar 27, 2026' },
+    },
   },
 
   current: {
-    name: 'Sarah Chen',
-    unit: '14A',
-    floor: 14,
+    name:'Sarah Chen', unit:'14A', floor:14,
+    unreadCount: 3,
     notifications: [
-      { id: 1, read: false, urgent: true,  type: 'movein',      icon: '📦', title: 'New neighbor moving in — your floor!', body: 'Unit 14B (floor 14, right next door) is scheduled for March 28, 8am–11am. Service elevator will be reserved and loading dock may be congested.', date: 'Today, 9:14 AM', calDay: 28 },
-      { id: 2, read: false, urgent: false, type: 'movein',      icon: '📦', title: 'Move-in scheduled: Unit 3B', body: 'Chris Park (floor 3) is moving in on March 28, 11am–2pm. Two move-ins are scheduled on the same day.', date: 'Today, 8:50 AM', calDay: 28 },
-      { id: 3, read: true,  urgent: false, type: 'movein',      icon: '📦', title: 'Move-in scheduled: Unit 11F', body: 'James Lee (floor 11) is moving in on March 26, 11am–2pm. Service elevator reserved.', date: 'Yesterday', calDay: 26 },
-      { id: 4, read: true,  urgent: false, type: 'maintenance', icon: '🔧', title: 'Upcoming: HVAC maintenance', body: 'Lobby and corridor HVAC maintenance on March 20, 9am–1pm. Some noise expected in common areas.', date: 'Mar 7', calDay: 20 },
-      { id: 5, read: true,  urgent: false, type: 'info',        icon: '✅', title: 'Move-in complete: Unit 7A', body: 'Maria Santos has successfully moved into unit 7A. Service elevator is fully available again.', date: 'Mar 5', calDay: null },
+      { id:1, read:false, iconName:'package',       color:'blue',   title:'Upcoming move-in on your floor',
+        body:'Alex Johnson is moving into Unit 14B on March 28, 8am–11am. Expect service elevator activity on Floor 14.',     time:'2 hours ago' },
+      { id:2, read:false, iconName:'wrench',         color:'orange', title:'HVAC Maintenance — March 20',
+        body:'Scheduled maintenance for lobby & corridor HVAC, 9am–1pm. Expect some noise in common areas.',                 time:'Yesterday' },
+      { id:3, read:false, iconName:'calendar',       color:'accent', title:'Rooftop social this Friday',
+        body:'Building social on the rooftop at 6pm. RSVP at the concierge desk. Drinks and light bites included.',          time:'2 days ago' },
+      { id:4, read:true,  iconName:'truck',          color:'yellow', title:'Package received for you',
+        body:'A delivery was received on your behalf. Pick up at the front desk, Package Locker C-12.',                      time:'3 days ago' },
+      { id:5, read:true,  iconName:'shield',         color:'green',  title:'COI renewal reminder',
+        body:"Your renter's insurance renews in 45 days. Upload the new COI to maintain your move-in eligibility.",          time:'5 days ago' },
     ],
-    prefs: { myFloor: true, adjFloor: true, allBuilding: false, maintenance: true, events: true }
+    payments: {
+      bills: [
+        { id:'electric', iconName:'zap',       cls:'electric', label:'Electric',          provider:'ConEd',        amount:94.50,  due:'Mar 25', status:'due',      autoPay:false },
+        { id:'internet', iconName:'wifi',       cls:'internet', label:'Internet & Cable',  provider:'Xfinity',      amount:69.99,  due:'Mar 28', status:'due',      autoPay:true  },
+        { id:'amenity',  iconName:'sparkles',   cls:'amenity',  label:'Building Amenity',  provider:'The Meridian', amount:350.00, due:'Mar 1',  status:'paid',     autoPay:true  },
+        { id:'parking',  iconName:'car',        cls:'parking',  label:'Parking — Spot 42', provider:'The Meridian', amount:275.00, due:'Apr 1',  status:'upcoming', autoPay:false },
+        { id:'storage',  iconName:'archive',    cls:'storage',  label:'Storage Unit S14',  provider:'The Meridian', amount:55.00,  due:'Apr 1',  status:'upcoming', autoPay:true  },
+      ],
+    },
+    prefs: { myFloor:true, adjFloor:true, allBuilding:false, maintenance:true, events:true },
   },
 
-  pendingCOIs: [
-    { id: 1, name: 'Alex Johnson', unit: '14B', moveIn: 'Mar 28', status: 'under_review', file: 'AlexJohnson_StateFarm.pdf', submitted: 'Mar 9',  coverage: '$300,000', provider: 'State Farm',  expiry: 'Dec 2026', additionalInsured: true  },
-    { id: 2, name: 'Maria Santos', unit: '7A',  moveIn: 'Mar 25', status: 'under_review', file: 'Santos_Lemonade.pdf',      submitted: 'Mar 8',  coverage: '$100,000', provider: 'Lemonade',   expiry: 'Jan 2027', additionalInsured: false },
-    { id: 3, name: 'David Kim',    unit: '22C', moveIn: 'Mar 30', status: 'under_review', file: 'DavidKim_Allstate.pdf',    submitted: 'Mar 10', coverage: '$500,000', provider: 'Allstate',   expiry: 'Oct 2026', additionalInsured: true  },
-    { id: 4, name: 'Emma Wilson',  unit: '5D',  moveIn: 'Apr 1',  status: 'under_review', file: 'Wilson_Progressive.pdf',   submitted: 'Mar 11', coverage: '$200,000', provider: 'Progressive',expiry: 'Mar 2027', additionalInsured: true  }
-  ],
-
-  residents: [
-    { name: 'Maria Santos', unit: '7A',  date: 'Mar 25', coi: 'approved', elevator: 'booked',  utilities: 'partial',     compliance: 'partial' },
-    { name: 'James Lee',    unit: '11F', date: 'Mar 26', coi: 'approved', elevator: 'booked',  utilities: 'complete',    compliance: 'full'    },
-    { name: 'Alex Johnson', unit: '14B', date: 'Mar 28', coi: 'pending',  elevator: 'booked',  utilities: 'partial',     compliance: 'partial' },
-    { name: 'Chris Park',   unit: '3B',  date: 'Mar 28', coi: 'missing',  elevator: 'missing', utilities: 'not_started', compliance: 'none'    },
-    { name: 'David Kim',    unit: '22C', date: 'Mar 30', coi: 'pending',  elevator: 'booked',  utilities: 'not_started', compliance: 'partial' },
-    { name: 'Emma Wilson',  unit: '5D',  date: 'Apr 1',  coi: 'pending',  elevator: 'missing', utilities: 'not_started', compliance: 'none'    }
-  ],
-
-  schedule: {
-    'Mar 25': [{ resident: 'Maria Santos', unit: '7A',  slot: '8am–11am',  status: 'confirmed'   }],
-    'Mar 26': [{ resident: 'James Lee',    unit: '11F', slot: '11am–2pm',  status: 'confirmed'   }],
-    'Mar 28': [
-      { resident: 'Alex Johnson', unit: '14B', slot: '8am–11am',  status: 'confirmed'   },
-      { resident: 'Chris Park',   unit: '3B',  slot: '11am–2pm',  status: 'unconfirmed' }
-    ],
-    'Mar 30': [{ resident: 'David Kim',  unit: '22C', slot: '8am–11am',  status: 'confirmed'   }]
-  },
-
-  selectedCOI: null,
-
-  // Elevator booking flow
-  elevatorBooking: { step: 0, selectedDate: null, selectedSlot: null }, // step 0=checklist 1=calendar 2=slot 3=confirm
-
-  // Calendar
-  calendarState: {
-    view: 'month', // month | week | day
-    year: 2026,
-    month: 3,       // March
-    weekStart: 23,  // week of Mar 23 for week view
-    selectedDay: null
-  },
-
-  utilitiesStep: 0
+  calendarState:   { view:'month', year:2026, month:3, weekStart:23, selectedDay:28 },
+  elevatorBooking: { step:0, selectedDate:28, selectedSlot:'morning' },
+  buildingState:   { selectedFloor:null, showComplaint:false, complaintSent:false },
 };
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function badge(status) {
-  const map = {
-    approved:     ['badge-green',  '✓ Approved'],
-    under_review: ['badge-yellow', '⏳ Under Review'],
-    pending:      ['badge-yellow', '⏳ Pending'],
-    not_started:  ['badge-gray',   'Not Started'],
-    missing:      ['badge-red',    '⚠ Missing'],
-    booked:       ['badge-green',  '✓ Booked'],
-    complete:     ['badge-green',  '✓ Complete'],
-    scheduled:    ['badge-blue',   '📅 Scheduled'],
-    partial:      ['badge-yellow', '◑ Partial'],
-    full:         ['badge-green',  '✓ Compliant'],
-    none:         ['badge-red',    '⚠ Non-compliant'],
-    confirmed:    ['badge-green',  'Confirmed'],
-    unconfirmed:  ['badge-yellow', '⚠ Unconfirmed']
-  };
-  const [cls, label] = map[status] || ['badge-gray', status];
-  return `<span class="badge ${cls}">${label}</span>`;
+/* ─── Icon Helper ─── */
+function ic(name, size) {
+  size = size || 16;
+  return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"></i>`;
 }
 
-function eventsForDate(year, month, day) {
-  const key = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-  return BUILDING_EVENTS[key] || [];
+function badge(text, cls) {
+  return `<span class="badge badge--${cls}">${text}</span>`;
 }
 
-// ── Navigation ─────────────────────────────────────────────────────────────
+function fmt$(n) {
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
+/* ─── Navigation ─── */
 function navigate(screen) {
-  if (state.role === 'movingin') state.movingInScreen = screen;
-  else if (state.role === 'current') state.currentResidentScreen = screen;
-  else state.staffScreen = screen;
-  state.selectedCOI = null;
+  if (state.role === 'movingin')  state.movingInScreen        = screen;
+  if (state.role === 'current')   state.currentResidentScreen = screen;
+  if (state.role === 'staff')     state.staffScreen           = screen;
   render();
 }
 
@@ -145,1238 +177,1077 @@ function switchRole(role) {
   render();
 }
 
-// ── Calendar Component ─────────────────────────────────────────────────────
+function selectBuildingFloor(f) {
+  state.buildingState.selectedFloor  = state.buildingState.selectedFloor === f ? null : f;
+  state.buildingState.showComplaint  = false;
+  state.buildingState.complaintSent  = false;
+  render();
+}
 
-function renderCalendar(mode = 'view') {
+function showComplaintForm()  { state.buildingState.showComplaint = true;  render(); }
+function submitComplaint()    { state.buildingState.complaintSent = true;  render(); }
+function cancelComplaint()    { state.buildingState.showComplaint = false; render(); }
+
+function bookingNext() { state.elevatorBooking.step++; render(); }
+function bookingBack() { state.elevatorBooking.step--; render(); }
+
+function selectBookingDate(d) { state.elevatorBooking.selectedDate = d; render(); }
+function selectBookingSlot(s) { state.elevatorBooking.selectedSlot = s; render(); }
+
+function togglePref(key) { state.current.prefs[key] = !state.current.prefs[key]; render(); }
+function markAllRead()   { state.current.notifications.forEach(n => n.read = true); state.current.unreadCount = 0; render(); }
+
+function setCalView(v)  { state.calendarState.view = v; render(); }
+function selectDay(d)   { state.calendarState.selectedDay = d; state.calendarState.view = 'day'; render(); }
+
+function calPrev() {
   const cs = state.calendarState;
-  const MONTH_NAMES = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-  const weekDates = getWeekDates(cs.year, cs.month, cs.weekStart);
-
-  return `
-    <div class="cal-container">
-      <div class="cal-header">
-        <div class="cal-header-left">
-          ${cs.view === 'month' ? `
-            <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
-            <span class="cal-month-label">${MONTH_NAMES[cs.month]} ${cs.year}</span>
-            <button class="cal-nav-btn" onclick="calNav(1)">›</button>
-          ` : cs.view === 'week' ? `
-            <button class="cal-nav-btn" onclick="calWeekNav(-7)">‹</button>
-            <span class="cal-month-label">${formatWeekLabel(weekDates)}</span>
-            <button class="cal-nav-btn" onclick="calWeekNav(7)">›</button>
-          ` : `
-            <button class="cal-nav-btn" onclick="calDayNav(-1)">‹</button>
-            <span class="cal-month-label">${formatDayLabel(cs.year, cs.month, cs.selectedDay || 9)}</span>
-            <button class="cal-nav-btn" onclick="calDayNav(1)">›</button>
-          `}
-        </div>
-        <div class="cal-view-toggle">
-          <button class="cal-view-btn ${cs.view==='month'?'cal-view-btn--active':''}" onclick="setCalView('month')">Month</button>
-          <button class="cal-view-btn ${cs.view==='week' ?'cal-view-btn--active':''}" onclick="setCalView('week')">Week</button>
-          <button class="cal-view-btn ${cs.view==='day'  ?'cal-view-btn--active':''}" onclick="setCalView('day')">Day</button>
-        </div>
-      </div>
-
-      ${cs.view === 'month' ? renderMonthView(mode) : ''}
-      ${cs.view === 'week'  ? renderWeekView(mode)  : ''}
-      ${cs.view === 'day'   ? renderDayView(mode)   : ''}
-
-      ${cs.selectedDay && cs.view !== 'day' ? renderDayDetail(mode) : ''}
-    </div>
-  `;
-}
-
-function renderMonthView(mode) {
-  const { year, month, selectedDay } = state.calendarState;
-  // March 1, 2026 = Sunday → Mon-first startDow = 6
-  const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const prevMonthDays = new Date(year, month - 1, 0).getDate();
-
-  const cells = [];
-  for (let i = 0; i < firstDow; i++)
-    cells.push({ day: prevMonthDays - firstDow + 1 + i, cur: false });
-  for (let d = 1; d <= daysInMonth; d++)
-    cells.push({ day: d, cur: true });
-  while (cells.length % 7 !== 0)
-    cells.push({ day: cells.length - daysInMonth - firstDow + 1, cur: false });
-
-  return `
-    <div class="cal-month-grid">
-      ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d =>
-        `<div class="cal-weekday-hdr">${d}</div>`
-      ).join('')}
-      ${cells.map(cell => {
-        const evts = cell.cur ? eventsForDate(year, month, cell.day) : [];
-        const isToday = cell.cur && year===2026 && month===3 && cell.day===9;
-        const isSel   = cell.cur && selectedDay === cell.day;
-        const bookable = mode === 'booking' && cell.cur && isBookableDate(year, month, cell.day);
-        return `
-          <div class="cal-day-cell ${!cell.cur?'cal-day-other':''} ${isToday?'cal-day-today':''} ${isSel?'cal-day-selected':''} ${bookable?'cal-day-bookable':''}"
-               onclick="${cell.cur ? `selectCalDay(${cell.day})` : ''}">
-            <div class="cal-day-num">${cell.day}</div>
-            ${evts.slice(0,3).map(e => `
-              <div class="cal-pill cal-pill--${e.color}" title="${e.title}">${e.title}</div>
-            `).join('')}
-            ${evts.length > 3 ? `<div class="cal-more">+${evts.length-3}</div>` : ''}
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-function renderWeekView(mode) {
-  const { year, month, weekStart } = state.calendarState;
-  const weekDates = getWeekDates(year, month, weekStart);
-  const hours = [7,8,9,10,11,12,13,14,15,16,17,18];
-  const hLabel = h => h < 12 ? `${h}am` : h===12 ? '12pm' : `${h-12}pm`;
-
-  return `
-    <div class="cal-week-view">
-      <div class="cal-week-hdr">
-        <div class="cal-time-spacer"></div>
-        ${weekDates.map(d => {
-          const isToday = d.y===2026&&d.m===3&&d.day===9;
-          const evts = eventsForDate(d.y, d.m, d.day);
-          return `
-            <div class="cal-week-day-col ${isToday?'cal-wdc--today':''}">
-              <div class="cal-wdc-label">${d.dow}</div>
-              <div class="cal-wdc-num ${isToday?'cal-wdc-num--today':''}">${d.day}</div>
-              ${evts.length ? `<div class="cal-wdc-dot"></div>` : ''}
-            </div>
-          `;
-        }).join('')}
-      </div>
-      <div class="cal-week-body">
-        ${hours.map(h => `
-          <div class="cal-week-row">
-            <div class="cal-time-lbl">${hLabel(h)}</div>
-            ${weekDates.map(d => {
-              const evts = eventsForDate(d.y, d.m, d.day).filter(e => e.timeH === h);
-              return `
-                <div class="cal-week-cell ${mode==='booking'&&isBookableDate(d.y,d.m,d.day)?'cal-week-cell--bookable':''}"
-                     onclick="${mode==='booking'&&isBookableDate(d.y,d.m,d.day)?`selectCalDay(${d.day})`:''}">
-                  ${evts.map(e => `
-                    <div class="cal-event-block cal-event-block--${e.color}">
-                      <div class="cal-eb-title">${e.icon} ${e.title}</div>
-                      <div class="cal-eb-time">${e.time}</div>
-                    </div>
-                  `).join('')}
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function renderDayView(mode) {
-  const { year, month, selectedDay } = state.calendarState;
-  const day = selectedDay || 9;
-  const evts = eventsForDate(year, month, day);
-  const hours = [7,8,9,10,11,12,13,14,15,16,17,18,19];
-  const hLabel = h => h < 12 ? `${h}:00 AM` : h===12 ? '12:00 PM' : `${h-12}:00 PM`;
-
-  return `
-    <div class="cal-day-view">
-      ${hours.map(h => {
-        const evt = evts.find(e => e.timeH === h);
-        return `
-          <div class="cal-day-row">
-            <div class="cal-time-lbl cal-time-lbl--day">${hLabel(h)}</div>
-            <div class="cal-day-slot">
-              ${evt ? `
-                <div class="cal-day-evt cal-day-evt--${evt.color}">
-                  <div class="cal-de-icon">${evt.icon}</div>
-                  <div>
-                    <div class="cal-de-title">${evt.title}</div>
-                    <div class="cal-de-desc">${evt.desc} · ${evt.time}</div>
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-function renderDayDetail(mode) {
-  const { year, month, selectedDay } = state.calendarState;
-  const evts = eventsForDate(year, month, selectedDay);
-  const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  if (!evts.length && mode !== 'booking') return '';
-
-  return `
-    <div class="cal-day-detail">
-      <div class="cal-dd-header">${MONTHS[month]} ${selectedDay}</div>
-      ${evts.length ? evts.map(e => `
-        <div class="cal-dd-event cal-event-block--${e.color}">
-          <span class="cal-dd-icon">${e.icon}</span>
-          <div>
-            <div class="cal-dd-title">${e.title}</div>
-            <div class="cal-dd-meta">${e.desc} · ${e.time}</div>
-          </div>
-        </div>
-      `).join('') : `<div style="color:#94a3b8;font-size:13px">No events on this day.</div>`}
-      ${mode === 'booking' && isBookableDate(year, month, selectedDay) ? `
-        <button class="btn-primary" style="margin-top:12px" onclick="state.elevatorBooking.step=2; render()">Select this date →</button>
-      ` : ''}
-    </div>
-  `;
-}
-
-// Calendar helpers
-
-function getWeekDates(year, month, startDay) {
-  const DOWS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const result = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(year, month - 1, startDay + i);
-    result.push({ y: d.getFullYear(), m: d.getMonth()+1, day: d.getDate(), dow: DOWS[d.getDay()] });
-  }
-  return result;
-}
-
-function formatWeekLabel(weekDates) {
-  const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const first = weekDates[0], last = weekDates[6];
-  if (first.m === last.m) return `${MONTHS[first.m]} ${first.day}–${last.day}, ${first.y}`;
-  return `${MONTHS[first.m]} ${first.day} – ${MONTHS[last.m]} ${last.day}, ${first.y}`;
-}
-
-function formatDayLabel(year, month, day) {
-  const DOWS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-  const d = new Date(year, month - 1, day);
-  return `${DOWS[d.getDay()]}, ${MONTHS[month]} ${day}`;
-}
-
-function isBookableDate(year, month, day) {
-  // Available for booking: not a Sunday, not already fully booked, >= today
-  const d = new Date(year, month - 1, day);
-  const today = new Date(2026, 2, 9);
-  if (d < today) return false;
-  if (d.getDay() === 0) return false; // no Sundays
-  // Mar 30 is fully booked
-  if (year===2026 && month===3 && day===30) return false;
-  return true;
-}
-
-function selectCalDay(day) {
-  state.calendarState.selectedDay = day;
+  if (cs.view === 'month') { if (cs.month > 1) cs.month--; else { cs.year--; cs.month = 12; } }
+  else if (cs.view === 'week') { cs.weekStart -= 7; if (cs.weekStart < 1) { cs.month--; cs.weekStart = 21; } }
+  else { if (cs.selectedDay > 1) cs.selectedDay--; else { cs.selectedDay = 28; cs.month--; } }
   render();
 }
 
-function setCalView(view) {
-  state.calendarState.view = view;
-  render();
-}
-
-function calNav(dir) {
-  let { year, month } = state.calendarState;
-  month += dir;
-  if (month > 12) { month = 1; year++; }
-  if (month < 1)  { month = 12; year--; }
-  state.calendarState.year = year;
-  state.calendarState.month = month;
-  state.calendarState.selectedDay = null;
-  render();
-}
-
-function calWeekNav(days) {
+function calNext() {
   const cs = state.calendarState;
-  const d = new Date(cs.year, cs.month - 1, cs.weekStart + days);
-  cs.year = d.getFullYear();
-  cs.month = d.getMonth() + 1;
-  cs.weekStart = d.getDate();
+  if (cs.view === 'month') { if (cs.month < 12) cs.month++; else { cs.year++; cs.month = 1; } }
+  else if (cs.view === 'week') { cs.weekStart += 7; if (cs.weekStart > 28) { cs.month++; cs.weekStart = 1; } }
+  else { if (cs.selectedDay < 31) cs.selectedDay++; else { cs.selectedDay = 1; cs.month++; } }
   render();
 }
 
-function calDayNav(dir) {
-  const cs = state.calendarState;
-  const d = new Date(cs.year, cs.month - 1, (cs.selectedDay || 9) + dir);
-  cs.year = d.getFullYear();
-  cs.month = d.getMonth() + 1;
-  cs.selectedDay = d.getDate();
-  render();
+/* ─── Nav Item Helper ─── */
+function navItem(screen, label, iconName, currentScreen, bdg) {
+  const active   = currentScreen === screen;
+  const bdgHtml  = bdg ? `<span class="nav-badge">${bdg}</span>` : '';
+  return `<button class="nav-item ${active ? 'nav-item--active' : ''}" onclick="navigate('${screen}')">
+    ${ic(iconName, 18)}<span style="flex:1">${label}</span>${bdgHtml}
+  </button>`;
 }
 
-// ── Moving-In Resident: Dashboard ──────────────────────────────────────────
+/* ─── Layout ─── */
+function renderLayout(contentFn) {
+  const role = state.role;
+  const mi   = state.movingin;
+  const cr   = state.current;
 
-function renderMovingInDashboard() {
-  const { movingin: r } = state;
-  const steps = [r.coi.status === 'approved', r.elevator.status === 'booked', false];
-  const done = steps.filter(Boolean).length;
-  const pct  = Math.round(done / 3 * 100);
+  const roleButtons = [
+    { key:'movingin', label:'Moving In', icon:'package'    },
+    { key:'current',  label:'Resident',  icon:'home'       },
+    { key:'staff',    label:'Staff',     icon:'building-2' },
+  ].map(r => `
+    <button class="role-btn ${role === r.key ? 'role-btn--active' : ''}" onclick="switchRole('${r.key}')">
+      ${ic(r.icon, 14)} ${r.label}
+    </button>
+  `).join('');
 
-  return `
-    <div class="screen-content">
-      <div class="welcome-banner">
-        <div>
-          <div class="welcome-greeting">Hi, ${r.name} 👋</div>
-          <div class="welcome-subtitle">
-            Move-in: <strong>${r.moveInDate}</strong> · Unit ${r.unit}<br>${r.building}
-          </div>
-        </div>
-        <div class="welcome-meta">
-          <div class="welcome-days">${r.daysUntil}</div>
-          <div class="welcome-days-label">days away</div>
-        </div>
-      </div>
+  let userName, userUnit, avatarCls, initials;
+  if (role === 'movingin') { userName = mi.name;        userUnit = `Unit ${mi.unit}`;     avatarCls = 'indigo'; initials = 'AJ'; }
+  else if (role === 'current') { userName = cr.name;   userUnit = `Unit ${cr.unit}`;     avatarCls = 'green';  initials = 'SC'; }
+  else                     { userName = 'Maya Bennett'; userUnit = 'Building Staff';       avatarCls = 'blue';   initials = 'MB'; }
 
-      <div class="progress-section">
-        <div class="progress-header">
-          <span>${done} of 3 steps complete</span><span>${pct}%</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>
-
-      <div class="steps-grid">
-        <div class="step-card ${r.coi.status==='approved'?'step-card--done':''}" onclick="navigate('coi')">
-          <div class="step-icon">${r.coi.status==='approved'?'✅':'📄'}</div>
-          <div class="step-info">
-            <div class="step-title">Certificate of Insurance (COI)</div>
-            <div class="step-desc">Required by your building before move-in</div>
-            <div class="step-status">${badge(r.coi.status)}</div>
-          </div>
-          <div class="step-arrow">›</div>
-        </div>
-
-        <div class="step-card ${r.elevator.status==='booked'?'step-card--done':''}" onclick="navigate('elevator')">
-          <div class="step-icon">${r.elevator.status==='booked'?'✅':'🛗'}</div>
-          <div class="step-info">
-            <div class="step-title">Elevator Reservation</div>
-            <div class="step-desc">${r.elevator.status==='booked' ? `${r.elevator.slot} · ${r.elevator.elevator}` : 'Reserve your move-in window'}</div>
-            <div class="step-status">${badge(r.elevator.status)}</div>
-          </div>
-          <div class="step-arrow">›</div>
-        </div>
-
-        <div class="step-card" onclick="navigate('utilities')">
-          <div class="step-icon">⚡</div>
-          <div class="step-info">
-            <div class="step-title">Utilities & Internet</div>
-            <div class="step-desc">Electric · Gas · ISP — 2 of 3 set up</div>
-            <div class="step-status">${badge('partial')}</div>
-          </div>
-          <div class="step-arrow">›</div>
-        </div>
-      </div>
-
-      <div class="info-card">
-        <div class="info-card-title">📋 Building Policy Reminders</div>
-        <ul class="info-list">
-          <li>Move-ins: Mon–Sat, 8am–5pm (no Sundays)</li>
-          <li>Service elevator must be reserved in advance — no passenger elevator use</li>
-          <li>COI must be approved before your move-in date</li>
-          <li>Professional movers required for items over 100 lbs</li>
-          <li>Loading dock entrance is on the west side of the building</li>
-        </ul>
-      </div>
-    </div>
-  `;
-}
-
-// ── Moving-In Resident: COI ────────────────────────────────────────────────
-
-function renderMovingInCOI() {
-  const { coi } = state.movingin;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">Certificate of Insurance</h2>
-      </div>
-      <div class="explainer-card">
-        <div class="explainer-title">What is a COI?</div>
-        <div class="explainer-text">A Certificate of Insurance proves you have renter's insurance. The Meridian requires <strong>$100,000+ in liability coverage</strong> with the building listed as an additional insured party.</div>
-      </div>
-      ${coi.status==='not_started' ? renderCOIUpload() : ''}
-      ${coi.status==='under_review'? renderCOIUnderReview() : ''}
-      ${coi.status==='approved'    ? renderCOIApproved() : ''}
-      ${coi.status==='rejected'    ? renderCOIRejected() : ''}
-      <div class="requirements-card">
-        <div class="req-title">COI Requirements</div>
-        <div class="req-list">
-          ${['$100,000+ liability coverage','The Meridian LLC listed as additional insured','Policy valid through move-in date','Issued by a licensed US insurer','Your full legal name on the policy'].map(r =>
-            `<div class="req-item"><span class="req-check">✓</span><span>${r}</span></div>`
-          ).join('')}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderCOIUpload() {
-  return `
-    <div class="upload-zone" ondragover="event.preventDefault();this.classList.add('upload-zone--active')"
-         ondragleave="this.classList.remove('upload-zone--active')"
-         ondrop="event.preventDefault();this.classList.remove('upload-zone--active');simulateCOIUpload()"
-         onclick="simulateCOIUpload()">
-      <div class="upload-icon">📤</div>
-      <div class="upload-text">Drop your COI here or click to upload</div>
-      <div class="upload-subtext">PDF, JPG, PNG · max 10 MB</div>
-    </div>
-    <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:16px">
-      No policy yet? <a href="#" onclick="event.preventDefault()" style="color:#2563eb;font-weight:600">Find a provider →</a>
-    </div>
-  `;
-}
-
-function renderCOIUnderReview() {
-  return `
-    <div class="status-card status-card--yellow">
-      <div class="status-card-icon">⏳</div>
-      <div class="status-card-content">
-        <div class="status-card-title">Your COI is under review</div>
-        <div class="status-card-desc">Building staff will review within 1–2 business days. You'll be notified when approved.</div>
-      </div>
-    </div>
-    <div class="uploaded-file-card">
-      <div class="file-icon">📄</div>
-      <div class="file-info">
-        <div class="file-name">${state.movingin.coi.fileName}</div>
-        <div class="file-meta">Uploaded ${state.movingin.coi.uploadedAt}</div>
-      </div>
-      <button class="btn-link" onclick="state.movingin.coi.status='not_started';render()">Replace</button>
-    </div>
-  `;
-}
-
-function renderCOIApproved() {
-  return `
-    <div class="status-card status-card--green">
-      <div class="status-card-icon">✅</div>
-      <div class="status-card-content">
-        <div class="status-card-title">COI Approved — you're all set!</div>
-        <div class="status-card-desc">Your insurance meets all building requirements.</div>
-      </div>
-    </div>
-    <div class="uploaded-file-card">
-      <div class="file-icon">📄</div>
-      <div class="file-info"><div class="file-name">${state.movingin.coi.fileName}</div><div class="file-meta">Approved · ${state.movingin.coi.uploadedAt}</div></div>
-    </div>
-  `;
-}
-
-function renderCOIRejected() {
-  return `
-    <div class="status-card status-card--red">
-      <div class="status-card-icon">❌</div>
-      <div class="status-card-content">
-        <div class="status-card-title">COI Rejected — action required</div>
-        <div class="status-card-desc"><strong>Reason:</strong> Coverage below $100,000 minimum. Please update your policy and re-upload.</div>
-      </div>
-    </div>
-    ${renderCOIUpload()}
-  `;
-}
-
-function simulateCOIUpload() {
-  state.movingin.coi.status = 'under_review';
-  state.movingin.coi.fileName = 'AlexJohnson_Updated_COI.pdf';
-  state.movingin.coi.uploadedAt = 'March 9, 2026';
-  render();
-}
-
-// ── Moving-In Resident: Elevator (with Checklist + Calendar) ───────────────
-
-const ELEVATOR_SLOTS = [
-  { id: '8am',  label: '8am–11am',  available: true  },
-  { id: '11am', label: '11am–2pm',  available: false },
-  { id: '2pm',  label: '2pm–5pm',   available: true  }
-];
-
-function renderMovingInElevator() {
-  const { elevator } = state.movingin;
-
-  if (elevator.status === 'booked') {
-    return `
-      <div class="screen-content">
-        <div class="screen-header">
-          <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-          <h2 class="screen-title">Elevator Reservation</h2>
-        </div>
-        <div class="status-card status-card--green">
-          <div class="status-card-icon">✅</div>
-          <div class="status-card-content">
-            <div class="status-card-title">Elevator reserved — confirmed!</div>
-            <div class="status-card-desc">Your service elevator window is locked in. Check in at the building office before using it.</div>
-          </div>
-        </div>
-        <div class="booking-details-card">
-          <div class="booking-detail"><span class="bd-label">Date</span><span class="bd-value">${elevator.date}</span></div>
-          <div class="booking-detail"><span class="bd-label">Time Window</span><span class="bd-value">${elevator.slot}</span></div>
-          <div class="booking-detail"><span class="bd-label">Elevator</span><span class="bd-value">${elevator.elevator}</span></div>
-          <div class="booking-detail"><span class="bd-label">Confirmation #</span><span class="bd-value"><span class="code">${elevator.confirmationCode}</span></span></div>
-        </div>
-        <div class="info-card">
-          <div class="info-card-title">📋 Day-of Instructions</div>
-          <ul class="info-list">
-            <li>Check in at the building management office (lobby level)</li>
-            <li>Use the loading dock entrance on the west side of the building</li>
-            <li>Elevator key fob is provided at check-in and returned afterward</li>
-            <li>Overtime fee: $75/hour past your reserved window</li>
-          </ul>
-        </div>
-        <button class="btn-secondary" style="width:auto;display:inline-block;padding:10px 20px"
-          onclick="state.movingin.elevator.status='not_booked';state.elevatorBooking={step:0,selectedDate:null,selectedSlot:null};render()">
-          Modify Reservation
-        </button>
-      </div>
+  let sidebar = '';
+  if (role === 'movingin') {
+    const s = state.movingInScreen;
+    sidebar = `
+      <div class="sidebar-section">My Move-In</div>
+      ${navItem('dashboard', 'Overview',        'layout-dashboard', s)}
+      ${navItem('coi',       'Insurance (COI)', 'shield',           s)}
+      ${navItem('elevator',  'Elevator Booking','arrow-up-down',    s)}
+      ${navItem('utilities', 'Utilities',       'zap',              s)}
+      <div class="sidebar-section">Building</div>
+      ${navItem('building',  'Building Map',    'building-2',       s)}
+    `;
+  } else if (role === 'current') {
+    const s = state.currentResidentScreen;
+    const u = cr.unreadCount;
+    sidebar = `
+      <div class="sidebar-section">My Home</div>
+      ${navItem('feed',     'Notifications', 'bell',        s, u > 0 ? u : '')}
+      ${navItem('calendar', 'Calendar',      'calendar',    s)}
+      ${navItem('payments', 'Payments',      'credit-card', s)}
+      <div class="sidebar-section">Building</div>
+      ${navItem('building', 'Building Map',  'building-2',  s)}
+      ${navItem('settings', 'Settings',      'settings',    s)}
+    `;
+  } else {
+    const s = state.staffScreen;
+    sidebar = `
+      <div class="sidebar-section">Operations</div>
+      ${navItem('dashboard',  'Dashboard',       'layout-dashboard', s)}
+      ${navItem('coi-review', 'COI Review',      'file-check',       s, '3')}
+      ${navItem('schedule',   'Move-In Schedule','calendar',         s)}
+      <div class="sidebar-section">Building</div>
+      ${navItem('building',   'Building Map',    'building-2',       s)}
+      ${navItem('residents',  'Residents',       'users',            s)}
     `;
   }
 
-  const bk = state.elevatorBooking;
   return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">Book Elevator</h2>
-      </div>
-
-      <div class="booking-steps-row">
-        <div class="booking-step-item ${bk.step>=0?'bsi--active':''}">
-          <div class="bsi-dot">${bk.step>0?'✓':'1'}</div>
-          <div class="bsi-label">Checklist</div>
-        </div>
-        <div class="bsi-line"></div>
-        <div class="booking-step-item ${bk.step>=1?'bsi--active':''}">
-          <div class="bsi-dot">${bk.step>1?'✓':'2'}</div>
-          <div class="bsi-label">Pick Date</div>
-        </div>
-        <div class="bsi-line"></div>
-        <div class="booking-step-item ${bk.step>=2?'bsi--active':''}">
-          <div class="bsi-dot">${bk.step>2?'✓':'3'}</div>
-          <div class="bsi-label">Pick Time</div>
-        </div>
-        <div class="bsi-line"></div>
-        <div class="booking-step-item ${bk.step>=3?'bsi--active':''}">
-          <div class="bsi-dot">4</div>
-          <div class="bsi-label">Confirm</div>
-        </div>
-      </div>
-
-      ${bk.step === 0 ? renderBookingChecklist()    : ''}
-      ${bk.step === 1 ? renderBookingCalendar()     : ''}
-      ${bk.step === 2 ? renderBookingSlots()        : ''}
-      ${bk.step === 3 ? renderBookingConfirmation() : ''}
-    </div>
-  `;
-}
-
-function renderBookingChecklist() {
-  const items = BOOKING_CHECKLIST.map(item => {
-    const done = item.check(state);
-    return { ...item, done };
-  });
-  const reqDone   = items.filter(i => i.required && i.done).length;
-  const reqTotal  = items.filter(i => i.required).length;
-  const allReqDone = reqDone === reqTotal;
-
-  return `
-    <div class="checklist-card">
-      <div class="checklist-hdr">
-        <div class="checklist-title">Pre-Booking Checklist</div>
-        <div class="checklist-sub">Complete required items before reserving your elevator window</div>
-        <div class="checklist-progress-row">
-          <div class="checklist-progress-bar">
-            <div class="checklist-progress-fill" style="width:${Math.round(reqDone/reqTotal*100)}%"></div>
-          </div>
-          <span class="checklist-progress-label">${reqDone}/${reqTotal} required</span>
-        </div>
-      </div>
-      ${items.map(item => `
-        <div class="checklist-item ${item.done?'ci--done':''}">
-          <div class="checklist-icon ${item.done?'ci-icon--done':item.required?'ci-icon--req':'ci-icon--opt'}">
-            ${item.done ? '✓' : item.required ? '!' : '○'}
-          </div>
-          <div class="checklist-body">
-            <div class="checklist-label">
-              ${item.label}
-              ${item.required
-                ? `<span class="cl-tag cl-tag--req">Required</span>`
-                : `<span class="cl-tag cl-tag--opt">Optional</span>`}
-            </div>
-            <div class="checklist-hint">${item.hint}</div>
-            ${!item.done && item.id === 'coi' ? `
-              <button class="btn-link" style="margin-top:4px" onclick="navigate('coi')">Upload COI →</button>
-            ` : ''}
-            ${!item.done && item.id === 'utilities' ? `
-              <button class="btn-link" style="margin-top:4px" onclick="navigate('utilities')">Set up utilities →</button>
-            ` : ''}
-          </div>
-        </div>
-      `).join('')}
-    </div>
-
-    ${!allReqDone ? `
-      <div class="status-card status-card--yellow" style="margin-bottom:14px">
-        <div class="status-card-icon">⚠️</div>
-        <div class="status-card-content">
-          <div class="status-card-title">Complete required items first</div>
-          <div class="status-card-desc">${reqTotal - reqDone} required item(s) still pending. You can still proceed to check availability.</div>
-        </div>
-      </div>
-    ` : `
-      <div class="status-card status-card--green" style="margin-bottom:14px">
-        <div class="status-card-icon">🎉</div>
-        <div class="status-card-content">
-          <div class="status-card-title">All required items complete!</div>
-          <div class="status-card-desc">You're ready to reserve your elevator window.</div>
-        </div>
-      </div>
-    `}
-
-    <button class="btn-primary" onclick="state.elevatorBooking.step=1; state.calendarState.view='month'; state.calendarState.selectedDay=null; render()">
-      ${allReqDone ? 'Choose Your Date →' : 'View Availability Anyway →'}
-    </button>
-  `;
-}
-
-function renderBookingCalendar() {
-  const bk = state.elevatorBooking;
-  return `
-    <div class="booking-calendar-section">
-      <div class="booking-section-title">📅 Select your move-in date</div>
-      <div class="booking-section-sub">Green days are available for booking. Click a date to select it, then click "Select this date".</div>
-      ${renderCalendar('booking')}
-      <button class="btn-secondary" onclick="state.elevatorBooking.step=0;render()">← Back to Checklist</button>
-    </div>
-  `;
-}
-
-function renderBookingSlots() {
-  const bk = state.elevatorBooking;
-  const cs = state.calendarState;
-  const MONTHS = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dateLabel = cs.selectedDay ? `${MONTHS[cs.month]} ${cs.selectedDay}, ${cs.year}` : 'Selected Date';
-
-  return `
-    <div>
-      <div class="slot-header">Available windows for <strong>${dateLabel}</strong> · Service Elevator A</div>
-      <div class="slot-list">
-        ${ELEVATOR_SLOTS.map(s => `
-          <div class="slot-card ${!s.available?'slot-card--taken':''} ${bk.selectedSlot===s.id?'slot-card--selected':''}"
-               onclick="${s.available?`selectSlot('${s.id}')`:''}">
-            <div>
-              <div class="slot-time">${s.label}</div>
-              <div class="slot-status">${s.available?'Available (Service Elevator A)':'Taken'}</div>
-            </div>
-            ${bk.selectedSlot===s.id ? `<span class="badge badge-blue">Selected ✓</span>` : ''}
-          </div>
-        `).join('')}
-      </div>
-      <div class="slot-note">⏱ Each window is 3 hours · Overtime: $75/hour</div>
-      ${bk.selectedSlot ? `<button class="btn-primary" onclick="state.elevatorBooking.step=3;render()">Review Booking →</button>` : ''}
-      <button class="btn-secondary" onclick="state.elevatorBooking.step=1;render()">← Change Date</button>
-    </div>
-  `;
-}
-
-function selectSlot(id) {
-  state.elevatorBooking.selectedSlot = id;
-  render();
-}
-
-function renderBookingConfirmation() {
-  const bk = state.elevatorBooking;
-  const cs = state.calendarState;
-  const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-  const slotLabel = ELEVATOR_SLOTS.find(s => s.id === bk.selectedSlot)?.label || '';
-  const dateLabel = `${MONTHS[cs.month]} ${cs.selectedDay}, ${cs.year}`;
-
-  return `
-    <div style="background:white;border:1px solid #e2e8f0;border-radius:14px;padding:22px">
-      <div style="font-size:17px;font-weight:800;margin-bottom:16px">Confirm Your Booking</div>
-      <div class="booking-details-card" style="margin-bottom:0">
-        <div class="booking-detail"><span class="bd-label">Date</span><span class="bd-value">${dateLabel}</span></div>
-        <div class="booking-detail"><span class="bd-label">Time Window</span><span class="bd-value">${slotLabel}</span></div>
-        <div class="booking-detail"><span class="bd-label">Elevator</span><span class="bd-value">Service Elevator A</span></div>
-        <div class="booking-detail"><span class="bd-label">Unit</span><span class="bd-value">${state.movingin.unit}</span></div>
-      </div>
-      <p class="confirm-policy">By confirming, you agree to the elevator usage policy. Cancellations must be made 48+ hours in advance or a $50 fee applies.</p>
-      <div class="btn-row">
-        <button class="btn-secondary" onclick="state.elevatorBooking.step=2;render()">← Change Time</button>
-        <button class="btn-primary" onclick="confirmElevatorBooking()">Confirm Reservation ✓</button>
-      </div>
-    </div>
-  `;
-}
-
-function confirmElevatorBooking() {
-  const bk = state.elevatorBooking;
-  const cs = state.calendarState;
-  const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
-  const slotLabel = ELEVATOR_SLOTS.find(s => s.id === bk.selectedSlot)?.label || '';
-  state.movingin.elevator = {
-    status: 'booked',
-    date: `${MONTHS[cs.month]} ${cs.selectedDay}, ${cs.year}`,
-    slot: slotLabel,
-    elevator: 'Service Elevator A',
-    confirmationCode: `ELV-${cs.year}${String(cs.month).padStart(2,'0')}${String(cs.selectedDay).padStart(2,'0')}-${state.movingin.unit}`
-  };
-  render();
-}
-
-// ── Moving-In Resident: Utilities ──────────────────────────────────────────
-
-const PROVIDERS = {
-  electric: ['ConEd', 'National Grid', 'Direct Energy', 'Green Mountain Energy'],
-  gas:      ['ConEd', 'National Fuel', 'Sprague Energy', 'Direct Energy'],
-  internet: ['Xfinity', 'Spectrum', 'Verizon Fios', 'RCN']
-};
-
-function renderMovingInUtilities() {
-  const { utilities } = state.movingin;
-  const step = state.utilitiesStep;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">Utilities & Internet Setup</h2>
-      </div>
-      <div class="utilities-overview">
-        ${utilityRow('electric','⚡','Electric', utilities.electric)}
-        ${utilityRow('gas','🔥','Gas',           utilities.gas)}
-        ${utilityRow('internet','🌐','Internet', utilities.internet)}
-      </div>
-      ${step===0 ? renderUtilitiesHome()                                  : ''}
-      ${step===1 ? renderUtilitySetup('electric','Electric Provider','⚡'): ''}
-      ${step===2 ? renderUtilitySetup('gas','Gas Provider','🔥')         : ''}
-      ${step===3 ? renderUtilitySetup('internet','Internet Provider','🌐'): ''}
-      ${step===4 ? renderUtilitiesDone()                                  : ''}
-    </div>
-  `;
-}
-
-function utilityRow(type, icon, label, data) {
-  const cls = { complete:'badge-green', scheduled:'badge-blue', not_started:'badge-gray' };
-  const lbl = { complete:'✓ Complete',  scheduled:'📅 Scheduled', not_started:'Not started' };
-  const stepMap = { electric:1, gas:2, internet:3 };
-  return `
-    <div class="utility-row" onclick="state.utilitiesStep=${stepMap[type]};render()">
-      <span class="utility-icon">${icon}</span>
-      <span class="utility-label">${label}</span>
-      ${data.provider ? `<span class="utility-provider">${data.provider}</span>` : '<span class="utility-provider"></span>'}
-      <span class="badge ${cls[data.status]}">${lbl[data.status]}</span>
-      <span style="margin-left:8px;color:#94a3b8">›</span>
-    </div>
-  `;
-}
-
-function renderUtilitiesHome() {
-  return `
-    <div class="utilities-cta">
-      <div class="utilities-cta-text">Set up your utilities before move-in day to avoid gaps in service.</div>
-      <button class="btn-primary" style="width:auto;display:inline-block;padding:12px 28px" onclick="state.utilitiesStep=1;render()">Start Setup →</button>
-    </div>
-  `;
-}
-
-function renderUtilitySetup(type, title, icon) {
-  const data = state.movingin.utilities[type];
-  const nextStep = type==='electric'?2:type==='gas'?3:4;
-  const prevStep = type==='electric'?0:type==='gas'?1:2;
-  return `
-    <div class="utility-setup-card">
-      <div class="utility-setup-title">${icon} ${title}</div>
-      ${(data.status==='complete'||data.status==='scheduled') ? `
-        <div class="status-card status-card--${data.status==='complete'?'green':'blue'}" style="margin-bottom:14px">
-          <div class="status-card-icon">${data.status==='complete'?'✅':'📅'}</div>
-          <div class="status-card-content">
-            <div class="status-card-title">${data.provider} — ${data.status==='complete'?'Active':'Scheduled'}</div>
-            <div class="status-card-desc">${data.status==='complete'?`Account: ${data.accountNum||'Active'}`:`Installation on ${data.scheduledDate}`}</div>
-          </div>
-        </div>
-        <div style="font-size:12.5px;color:#64748b;margin-bottom:12px">Want to change? Select another provider:</div>
-      ` : ''}
-      <div class="provider-list" style="margin-bottom:14px">
-        ${PROVIDERS[type].map(p => `
-          <div class="provider-card" onclick="selectProvider('${type}','${p}')">
-            <div class="provider-logo">${p[0]}</div>
-            <div class="provider-name">${p}</div>
-            <div class="provider-arrow">›</div>
-          </div>
-        `).join('')}
-      </div>
-      <div class="btn-row">
-        <button class="btn-secondary" onclick="state.utilitiesStep=${prevStep};render()">← Back</button>
-        <button class="btn-primary" onclick="state.utilitiesStep=${nextStep};render()">${nextStep===4?'Finish ✓':'Next →'}</button>
-      </div>
-    </div>
-  `;
-}
-
-function selectProvider(type, provider) {
-  state.movingin.utilities[type] = {
-    status: type==='electric'?'complete':'scheduled',
-    provider,
-    accountNum: type==='electric' ? `CON-***${Math.floor(Math.random()*9000+1000)}` : undefined,
-    scheduledDate: type!=='electric' ? 'March 27' : undefined
-  };
-  render();
-}
-
-function renderUtilitiesDone() {
-  return `
-    <div class="status-card status-card--green">
-      <div class="status-card-icon">🎉</div>
-      <div class="status-card-content">
-        <div class="status-card-title">Utilities setup complete!</div>
-        <div class="status-card-desc">We'll send reminders as your service dates approach.</div>
-      </div>
-    </div>
-    <button class="btn-primary" onclick="navigate('dashboard')">← Back to Dashboard</button>
-  `;
-}
-
-// ── Current Resident: Feed ─────────────────────────────────────────────────
-
-function renderCurrentFeed() {
-  const { current } = state;
-  const unread = current.notifications.filter(n => !n.read).length;
-
-  return `
-    <div class="screen-content">
-      <div class="staff-header">
-        <div>
-          <div class="staff-greeting">Hi, ${current.name} 👋</div>
-          <div class="staff-date">Unit ${current.unit} · Floor ${current.floor} · The Meridian</div>
-        </div>
-        ${unread ? `<span class="badge badge-red">${unread} new</span>` : ''}
-      </div>
-
-      <div class="status-card status-card--blue" style="margin-bottom:20px">
-        <div class="status-card-icon">📅</div>
-        <div class="status-card-content">
-          <div class="status-card-title">Coming up: Move-in on your floor</div>
-          <div class="status-card-desc">Unit 14B (next door) is moving in on <strong>March 28, 8–11am</strong>. Expect some activity in the hallway and elevator.</div>
-          <button class="btn-small" style="margin-top:10px" onclick="state.calendarState.selectedDay=28;state.calendarState.view='day';navigate('calendar')">View in Calendar →</button>
-        </div>
-      </div>
-
-      <div class="section-header">🔔 Notifications</div>
-      <div class="notif-feed">
-        ${current.notifications.map(n => `
-          <div class="notif-card ${!n.read?'notif-card--unread':''} ${n.urgent?'notif-card--urgent':''}"
-               onclick="markRead(${n.id})">
-            ${!n.read ? '<div class="notif-dot"></div>' : ''}
-            <div class="notif-icon-wrap notif-icon-wrap--${n.type}">${n.icon}</div>
-            <div class="notif-content">
-              <div class="notif-title">${n.title}</div>
-              <div class="notif-body">${n.body}</div>
-              <div class="notif-time">${n.date}</div>
-              ${n.calDay ? `
-                <button class="btn-small" style="margin-top:8px" onclick="event.stopPropagation();state.calendarState.selectedDay=${n.calDay};state.calendarState.view='day';navigate('calendar')">See in Calendar</button>
-              ` : ''}
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function markRead(id) {
-  const n = state.current.notifications.find(n => n.id === id);
-  if (n) n.read = true;
-  render();
-}
-
-// ── Current Resident: Calendar ─────────────────────────────────────────────
-
-function renderCurrentCalendar() {
-  return `
-    <div class="screen-content" style="max-width:860px">
-      <div class="screen-header">
-        <h2 class="screen-title">Building Calendar</h2>
-      </div>
-
-      <div class="cal-legend">
-        <span class="cal-legend-item"><span class="cal-leg-dot cal-leg-dot--blue"></span>Move-in</span>
-        <span class="cal-legend-item"><span class="cal-leg-dot cal-leg-dot--indigo"></span>Move-in · Your floor</span>
-        <span class="cal-legend-item"><span class="cal-leg-dot cal-leg-dot--orange"></span>Maintenance</span>
-        <span class="cal-legend-item"><span class="cal-leg-dot cal-leg-dot--green"></span>Building event</span>
-      </div>
-
-      ${renderCalendar('view')}
-
-      ${state.calendarState.selectedDay && state.calendarState.view === 'month' ? '' : ''}
-    </div>
-  `;
-}
-
-// ── Current Resident: Settings ─────────────────────────────────────────────
-
-function renderCurrentSettings() {
-  const { prefs } = state.current;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <h2 class="screen-title">Notification Settings</h2>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Move-in Alerts</div>
-        <div class="settings-section-sub">Get notified when new residents move into the building</div>
-        ${settingToggle('myFloor',   'My floor only',       'Only notified for move-ins on floor ' + state.current.floor, prefs)}
-        ${settingToggle('adjFloor',  'Adjacent floors',     'Also notified for floors ' + (state.current.floor-1) + ' and ' + (state.current.floor+1), prefs)}
-        ${settingToggle('allBuilding','Whole building',     'Get notified about every move-in in the building', prefs)}
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Other Notifications</div>
-        ${settingToggle('maintenance', 'Maintenance & repairs', 'HVAC, plumbing, elevator servicing', prefs)}
-        ${settingToggle('events',      'Building events',       'Community meetings, social events', prefs)}
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">Delivery Method</div>
-        <div class="delivery-options">
-          ${['In-app', 'Email', 'Push notification'].map((m,i) => `
-            <div class="delivery-option ${i<2?'delivery-option--active':''}">
-              <span>${m}</span>
-              <span class="badge ${i<2?'badge-blue':'badge-gray'}">${i<2?'On':'Off'}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      <button class="btn-primary" onclick="alert('Settings saved!')">Save Preferences</button>
-    </div>
-  `;
-}
-
-function settingToggle(key, label, desc, prefs) {
-  const on = prefs[key];
-  return `
-    <div class="setting-row" onclick="state.current.prefs['${key}']=!state.current.prefs['${key}'];render()">
-      <div class="setting-info">
-        <div class="setting-label">${label}</div>
-        <div class="setting-desc">${desc}</div>
-      </div>
-      <div class="toggle ${on?'toggle--on':''}">
-        <div class="toggle-knob"></div>
-      </div>
-    </div>
-  `;
-}
-
-// ── Staff: Dashboard ───────────────────────────────────────────────────────
-
-function renderStaffDashboard() {
-  const urgent = state.residents.filter(r => r.compliance === 'none');
-  return `
-    <div class="screen-content">
-      <div class="staff-header">
-        <div>
-          <div class="staff-greeting">Operations Dashboard</div>
-          <div class="staff-date">The Meridian · March 9, 2026</div>
-        </div>
-      </div>
-      <div class="kpi-grid">
-        <div class="kpi-card kpi-card--blue"   onclick="navigate('schedule')">
-          <div class="kpi-number">5</div><div class="kpi-label">Moves This Week</div>
-        </div>
-        <div class="kpi-card kpi-card--yellow" onclick="navigate('coi-review')">
-          <div class="kpi-number">${state.pendingCOIs.filter(c=>c.status==='under_review').length}</div><div class="kpi-label">COIs Pending</div>
-        </div>
-        <div class="kpi-card kpi-card--red"    onclick="navigate('schedule')">
-          <div class="kpi-number">1</div><div class="kpi-label">Conflicts</div>
-        </div>
-        <div class="kpi-card kpi-card--green"  onclick="navigate('residents')">
-          <div class="kpi-number">72%</div><div class="kpi-label">Compliant</div>
-        </div>
-      </div>
-
-      ${urgent.length ? `
-        <div class="section-header">⚠️ Needs Attention</div>
-        ${urgent.map(r => `
-          <div class="alert-card">
-            <div class="alert-icon">⚠️</div>
-            <div class="alert-content">
-              <div class="alert-title">${r.name} · Unit ${r.unit}</div>
-              <div class="alert-desc">Move-in ${r.date} · COI missing · Elevator not booked</div>
-            </div>
-            <button class="btn-small" onclick="navigate('residents')">View →</button>
-          </div>
-        `).join('')}
-      ` : ''}
-
-      <div class="section-header">📅 This Week — Elevator Schedule</div>
-      ${Object.entries(state.schedule).map(([date, bookings]) => `
-        <div class="schedule-day">
-          <div class="schedule-date">${date}</div>
-          ${bookings.map(b => `
-            <div class="schedule-item ${b.status==='unconfirmed'?'schedule-item--warn':''}">
-              <span class="schedule-time">${b.slot}</span>
-              <span class="schedule-resident">${b.resident} · Unit ${b.unit}</span>
-              ${badge(b.status)}
-            </div>
-          `).join('')}
-        </div>
-      `).join('')}
-      <div class="view-all-btn" onclick="navigate('schedule')">View full schedule →</div>
-    </div>
-  `;
-}
-
-// ── Staff: COI Review ──────────────────────────────────────────────────────
-
-function renderStaffCOIReview() {
-  if (state.selectedCOI !== null) return renderCOIDetail();
-  const pending = state.pendingCOIs.filter(c => c.status === 'under_review').length;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">COI Review Queue</h2>
-      </div>
-      <div class="queue-summary">${pending} pending · ${state.pendingCOIs.length - pending} processed</div>
-      ${state.pendingCOIs.map(coi => `
-        <div class="coi-row" onclick="state.selectedCOI=${coi.id};render()">
-          <div>
-            <div class="coi-resident">${coi.name}</div>
-            <div class="coi-meta">Unit ${coi.unit} · Move-in ${coi.moveIn} · Submitted ${coi.submitted} · ${coi.file}</div>
-          </div>
-          <div class="coi-row-right">${badge(coi.status)}<span style="color:#94a3b8;margin-left:6px">›</span></div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-function renderCOIDetail() {
-  const coi = state.pendingCOIs.find(c => c.id === state.selectedCOI);
-  if (!coi) return '';
-  const hasIssue = !coi.additionalInsured;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="state.selectedCOI=null;render()">← COI Queue</button>
-        <h2 class="screen-title">Review COI</h2>
-      </div>
-      <div class="coi-detail-header">
-        <div><div class="coi-name">${coi.name}</div><div class="coi-unit">Unit ${coi.unit} · Move-in ${coi.moveIn}</div></div>
-        ${badge(coi.status)}
-      </div>
-      <div class="coi-preview">
-        <div class="coi-preview-header">📄 ${coi.file}</div>
-        <div class="coi-field"><span class="cf-label">Policyholder</span><span class="cf-value">${coi.name}</span></div>
-        <div class="coi-field"><span class="cf-label">Provider</span><span class="cf-value">${coi.provider}</span></div>
-        <div class="coi-field"><span class="cf-label">Liability Coverage</span><span class="cf-value">${coi.coverage}</span></div>
-        <div class="coi-field"><span class="cf-label">Policy Expiry</span><span class="cf-value">${coi.expiry}</span></div>
-        <div class="coi-field">
-          <span class="cf-label">Additional Insured</span>
-          <span class="cf-value ${hasIssue?'cf-warn':''}">${hasIssue?'⚠ The Meridian LLC — NOT listed':'✓ The Meridian LLC'}</span>
-        </div>
-      </div>
-      ${hasIssue ? `
-        <div class="coi-issue-card">
-          <div class="ci-title">⚠️ Issue Found</div>
-          <div class="ci-desc">The Meridian LLC is not listed as additional insured. Resident must update their policy and resubmit.</div>
-        </div>
-      ` : ''}
-      ${coi.status === 'under_review' ? `
-        <div class="review-actions">
-          <button class="btn-reject"  onclick="rejectCOI(${coi.id})">✗ Reject</button>
-          <button class="btn-approve" onclick="approveCOI(${coi.id})">✓ Approve COI</button>
-        </div>
-      ` : `
-        <div style="padding:16px;text-align:center;font-size:16px;font-weight:800;color:${coi.status==='approved'?'#16a34a':'#dc2626'}">
-          ${coi.status==='approved'?'✅ Approved':'❌ Rejected'}
-        </div>
-      `}
-    </div>
-  `;
-}
-
-function approveCOI(id) {
-  const coi = state.pendingCOIs.find(c => c.id === id);
-  if (coi) coi.status = 'approved';
-  const r = state.residents.find(r => r.name === coi.name);
-  if (r) r.coi = 'approved';
-  state.selectedCOI = null;
-  render();
-}
-
-function rejectCOI(id) {
-  const reason = prompt('Enter rejection reason (sent to resident):');
-  if (reason === null) return;
-  const coi = state.pendingCOIs.find(c => c.id === id);
-  if (coi) { coi.status = 'rejected'; coi.rejectedReason = reason; }
-  state.selectedCOI = null;
-  render();
-}
-
-// ── Staff: Schedule ────────────────────────────────────────────────────────
-
-function renderStaffSchedule() {
-  const allDates = ['Mar 25','Mar 26','Mar 27','Mar 28','Mar 30','Mar 31'];
-  const allSlots = ['8am–11am','11am–2pm','2pm–5pm'];
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">Elevator Schedule — Service Elevator A</h2>
-      </div>
-      <div class="schedule-legend">
-        <span class="legend-item"><span class="legend-dot legend-dot--green"></span>Confirmed</span>
-        <span class="legend-item"><span class="legend-dot legend-dot--yellow"></span>Unconfirmed</span>
-        <span class="legend-item"><span class="legend-dot legend-dot--gray"></span>Available</span>
-      </div>
-      ${allDates.map(date => {
-        const dayBookings = state.schedule[date] || [];
-        return `
-          <div class="schedule-block">
-            <div class="schedule-block-header">${date}</div>
-            ${allSlots.map(slot => {
-              const b = dayBookings.find(b => b.slot === slot);
-              return `
-                <div class="schedule-slot-row">
-                  <div class="slot-time-label">${slot}</div>
-                  ${b
-                    ? `<div class="slot-booking slot-booking--${b.status==='confirmed'?'ok':'warn'}">${b.resident} · Unit ${b.unit} ${b.status==='confirmed'?'✓':'⚠ COI pending'}</div>`
-                    : '<div class="slot-empty">Available</div>'}
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-// ── Staff: Residents ───────────────────────────────────────────────────────
-
-function renderStaffResidents() {
-  const { residents } = state;
-  const full = residents.filter(r=>r.compliance==='full').length;
-  const partial = residents.filter(r=>r.compliance==='partial').length;
-  const none = residents.filter(r=>r.compliance==='none').length;
-  return `
-    <div class="screen-content">
-      <div class="screen-header">
-        <button class="back-btn" onclick="navigate('dashboard')">← Dashboard</button>
-        <h2 class="screen-title">Upcoming Move-Ins</h2>
-      </div>
-      <div class="residents-summary">
-        <div class="rs-stat"><span class="rs-num">${residents.length}</span><span class="rs-label">Total</span></div>
-        <div class="rs-stat"><span class="rs-num" style="color:#16a34a">${full}</span><span class="rs-label">Compliant</span></div>
-        <div class="rs-stat"><span class="rs-num" style="color:#d97706">${partial}</span><span class="rs-label">Partial</span></div>
-        <div class="rs-stat"><span class="rs-num" style="color:#dc2626">${none}</span><span class="rs-label">Non-compliant</span></div>
-      </div>
-      <table class="residents-table">
-        <thead>
-          <tr><th>Resident</th><th>Move-in</th><th>COI</th><th>Elevator</th><th>Utilities</th></tr>
-        </thead>
-        <tbody>
-          ${residents.map(r => `
-            <tr class="${r.compliance==='none'?'row-danger':r.compliance==='partial'?'row-warn':''}">
-              <td><strong>${r.name}</strong><br><span style="color:#64748b;font-size:12px">Unit ${r.unit}</span></td>
-              <td style="font-weight:600">${r.date}</td>
-              <td>${badge(r.coi==='approved'?'approved':r.coi==='pending'?'pending':'missing')}</td>
-              <td>${badge(r.elevator==='booked'?'booked':'missing')}</td>
-              <td>${badge(r.utilities==='complete'?'complete':r.utilities==='partial'?'partial':'not_started')}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-// ── Layout ─────────────────────────────────────────────────────────────────
-
-function renderLayout(contentFn) {
-  const role = state.role;
-  const currentScreen = role==='movingin' ? state.movingInScreen
-                      : role==='current'  ? state.currentResidentScreen
-                      :                    state.staffScreen;
-
-  const navConfigs = {
-    movingin: [
-      { id:'dashboard', icon:'🏠', label:'My Move-In'         },
-      { id:'coi',       icon:'📄', label:'Insurance (COI)'    },
-      { id:'elevator',  icon:'🛗', label:'Elevator Booking'   },
-      { id:'utilities', icon:'⚡', label:'Utilities & Internet'}
-    ],
-    current: [
-      { id:'feed',     icon:'🔔', label:'Notifications', badge: state.current.notifications.filter(n=>!n.read).length || null },
-      { id:'calendar', icon:'📅', label:'Building Calendar' },
-      { id:'settings', icon:'⚙️', label:'Settings'          }
-    ],
-    staff: [
-      { id:'dashboard',  icon:'📊', label:'Operations'         },
-      { id:'coi-review', icon:'📄', label:'COI Review',  badge: state.pendingCOIs.filter(c=>c.status==='under_review').length },
-      { id:'schedule',   icon:'📅', label:'Schedule'          },
-      { id:'residents',  icon:'👥', label:'All Residents'      }
-    ]
-  };
-
-  const navItems = navConfigs[role];
-
-  const sectionLabel = role==='movingin' ? 'Move-In Setup'
-                     : role==='current'  ? 'My Building'
-                     :                    'Staff Portal';
-
-  return `
-    <div class="app-layout">
+    <div class="layout">
       <header class="topbar">
         <div class="topbar-brand">
-          <div class="logo">Home<span>Base</span></div>
-          <div class="logo-badge">Move-In MVP</div>
+          <div class="topbar-brand-icon">${ic('building-2', 16)}</div>
+          HomeBase
         </div>
-        <div class="role-switcher">
-          <button class="role-btn ${role==='movingin'?'role-btn--active':''}" onclick="switchRole('movingin')">📦 Moving In</button>
-          <button class="role-btn ${role==='current' ?'role-btn--active':''}" onclick="switchRole('current')">🏘️ Current Resident</button>
-          <button class="role-btn ${role==='staff'   ?'role-btn--active':''}" onclick="switchRole('staff')">🏢 Building Staff</button>
+        <div class="topbar-roles">${roleButtons}</div>
+        <div class="topbar-user">
+          <div class="avatar avatar--${avatarCls}">${initials}</div>
+          <div style="display:flex;flex-direction:column;line-height:1.25">
+            <span style="font-weight:600;color:var(--text);font-size:12.5px">${userName}</span>
+            <span style="font-size:11px">${userUnit}</span>
+          </div>
         </div>
       </header>
-
-      <div class="app-body">
-        <nav class="sidebar">
-          <div class="sidebar-section-label">${sectionLabel}</div>
-          ${navItems.map(item => `
-            <div class="nav-item ${currentScreen===item.id?'nav-item--active':''}" onclick="navigate('${item.id}')">
-              <span class="nav-icon">${item.icon}</span>
-              <span class="nav-label">${item.label}</span>
-              ${item.badge ? `<span class="nav-badge">${item.badge}</span>` : ''}
-            </div>
-          `).join('')}
-        </nav>
-
-        <main class="main-content">
-          ${contentFn()}
+      <div class="body-wrap">
+        <aside class="sidebar">${sidebar}</aside>
+        <main class="main">
+          <div class="main-inner">${contentFn()}</div>
         </main>
       </div>
     </div>
   `;
 }
 
-// ── Render ─────────────────────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════
+   MOVING IN SCREENS
+══════════════════════════════════════════════════ */
 
-function render() {
-  let contentFn;
-  if (state.role === 'movingin') {
-    const map = { dashboard:renderMovingInDashboard, coi:renderMovingInCOI, elevator:renderMovingInElevator, utilities:renderMovingInUtilities };
-    contentFn = map[state.movingInScreen] || renderMovingInDashboard;
-  } else if (state.role === 'current') {
-    const map = { feed:renderCurrentFeed, calendar:renderCurrentCalendar, settings:renderCurrentSettings };
-    contentFn = map[state.currentResidentScreen] || renderCurrentFeed;
+function renderMovingInDashboard() {
+  const mi  = state.movingin;
+  const done    = BOOKING_CHECKLIST.filter(i => i.check(state)).length;
+  const total   = BOOKING_CHECKLIST.length;
+  const reqDone = BOOKING_CHECKLIST.filter(i => i.required && i.check(state)).length;
+  const reqTotal= BOOKING_CHECKLIST.filter(i => i.required).length;
+  const pct     = Math.round(done / total * 100);
+
+  const coiBadge = { approved:'green', under_review:'yellow', rejected:'red', not_started:'gray' }[mi.coi.status];
+  const coiLabel = { approved:'COI Approved', under_review:'Under Review', rejected:'Rejected', not_started:'Not Uploaded' }[mi.coi.status];
+
+  const utStatusCls   = s => ({ complete:'green', scheduled:'blue', in_progress:'yellow', not_started:'gray' })[s] || 'gray';
+  const utStatusLabel = s => ({ complete:'Complete', scheduled:'Scheduled', in_progress:'In Progress', not_started:'Not Started' })[s] || s;
+
+  return `
+    <div class="hero-card">
+      <div class="hero-greeting">Welcome, ${mi.name.split(' ')[0]}!</div>
+      <div class="hero-sub">Your move-in to <strong style="color:var(--text)">${mi.building}</strong> is almost ready.</div>
+      <div class="hero-meta">
+        <div class="hero-meta-item">${ic('map-pin',14)} Unit <strong>${mi.unit}</strong>, Floor ${mi.floor}</div>
+        <div class="hero-meta-item">${ic('calendar',14)} <strong>${mi.moveInDate}</strong></div>
+        <div class="hero-meta-item">${ic('clock',14)} Elevator: <strong>${mi.elevator.slot}</strong></div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="progress-label">${done} of ${total} tasks complete — ${reqDone}/${reqTotal} required items done</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${ic('list-checks',18)} Move-In Checklist</div>
+        <span class="badge badge--${reqDone === reqTotal ? 'green' : 'yellow'}">${reqDone}/${reqTotal} required</span>
+      </div>
+      <div class="checklist">
+        ${BOOKING_CHECKLIST.map(item => {
+          const ok = item.check(state);
+          return `
+            <div class="checklist-item ${ok ? 'checklist-item--done' : ''}">
+              <div class="check-icon ${ok ? 'check-icon--done' : ''}">${ok ? ic('check',12) : ''}</div>
+              <div style="flex:1"><div class="check-label">${item.label}</div></div>
+              <span class="req-tag req-tag--${item.required ? 'required' : 'optional'}">${item.required ? 'Required' : 'Optional'}</span>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="card">
+        <div class="card-header" style="margin-bottom:12px">
+          <div class="card-title">${ic('shield',18)} Insurance</div>
+          ${badge(coiLabel, coiBadge)}
+        </div>
+        <div class="info-banner info-banner--yellow mb-3">${ic('clock',14)} <span>Uploaded <strong>${mi.coi.uploadedAt}</strong> — review takes 1–2 business days</span></div>
+        <button class="btn btn--ghost btn--sm w-full" onclick="navigate('coi')">${ic('arrow-right',14)} View Details</button>
+      </div>
+      <div class="card">
+        <div class="card-header" style="margin-bottom:12px">
+          <div class="card-title">${ic('arrow-up-down',18)} Elevator</div>
+          ${badge('Booked', 'green')}
+        </div>
+        <div class="info-banner info-banner--green mb-3">${ic('check-circle',14)} <span><strong>${mi.elevator.date}</strong> · ${mi.elevator.slot}</span></div>
+        <button class="btn btn--ghost btn--sm w-full" onclick="navigate('elevator')">${ic('arrow-right',14)} View Booking</button>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header" style="margin-bottom:12px">
+        <div class="card-title">${ic('zap',18)} Utilities</div>
+      </div>
+      <div class="utility-list">
+        ${Object.entries(mi.utilities).map(([key, u]) => {
+          const iconName = key === 'electric' ? 'zap' : 'wifi';
+          const label    = key === 'electric' ? 'Electric' : 'Internet';
+          const cls      = key === 'electric' ? 'electric' : 'internet';
+          return `
+            <div class="utility-row ${u.status !== 'not_started' ? 'utility-row--active' : ''}">
+              <div class="utility-icon utility-icon--${cls}">${ic(iconName,22)}</div>
+              <div class="utility-info">
+                <div class="utility-name">${label}</div>
+                <div class="utility-detail">${u.provider || 'Not configured'}${u.accountNum?' · '+u.accountNum:u.scheduledDate?' · Install: '+u.scheduledDate:''}</div>
+              </div>
+              ${badge(utStatusLabel(u.status), utStatusCls(u.status))}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderMovingInCOI() {
+  const coi = state.movingin.coi;
+  return `
+    <div class="page-header">
+      <div class="page-title">Certificate of Insurance</div>
+      <div class="page-subtitle">Required before elevator booking becomes available</div>
+    </div>
+    <div class="info-banner info-banner--blue mb-4">
+      ${ic('info',16)} <span><strong>Why is this required?</strong> COI protects the building from liability during your move. Our team verifies coverage amounts and that the building is listed as additional insured.</span>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${ic('file-text',18)} Uploaded Document</div>
+        ${badge('Under Review','yellow')}
+      </div>
+      <div class="file-card mb-4">
+        <div class="file-card-icon">${ic('file-text',22)}</div>
+        <div style="flex:1">
+          <div class="file-card-name">${coi.fileName}</div>
+          <div class="file-card-meta">Uploaded ${coi.uploadedAt}</div>
+        </div>
+        <button class="btn btn--ghost btn--sm">${ic('download',14)} Download</button>
+      </div>
+      <div class="card-title mb-3">${ic('clock',18)} Review Status</div>
+      <div class="review-timeline">
+        ${[
+          { done:true,  active:false, title:'Document received',           sub:'Mar 22, 2026 · 10:14am' },
+          { done:false, active:true,  title:'Under review by management',  sub:'Assigned to Maya Bennett · Est. Mar 24' },
+          { done:false, active:false, title:'Approval & notification',     sub:'You\'ll receive an email once approved' },
+        ].map(t => `
+          <div class="timeline-item">
+            <div class="timeline-dot ${t.done ? 'timeline-dot--done' : t.active ? 'timeline-dot--active' : 'timeline-dot--future'}"></div>
+            <div>
+              <div class="font-600" style="${!t.done && !t.active ? 'color:var(--text-3)' : ''}">${t.title}</div>
+              <div class="text-sm text-muted mt-1">${t.sub}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-title mb-3">${ic('shield-check',18)} COI Requirements Checklist</div>
+      ${[
+        ['General Liability',   '$1,000,000 per occurrence'],
+        ['Property Damage',     '$500,000 minimum'],
+        ['Additional Insured',  'The Meridian Building LLC must be listed'],
+        ['Coverage Dates',      'Policy must be active on Mar 28, 2026'],
+      ].map(([req, val]) => `
+        <div class="checklist-item checklist-item--done" style="padding:10px 14px;margin-bottom:6px">
+          <div class="check-icon check-icon--done">${ic('check',12)}</div>
+          <div><div class="check-label">${req}</div><div class="check-sublabel">${val}</div></div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function renderMovingInElevator() {
+  const eb = state.elevatorBooking;
+  const mi = state.movingin;
+
+  const stepLabels = ['Checklist','Date','Time Slot','Confirm'];
+  const stepper = `
+    <div class="stepper">
+      ${stepLabels.map((l, i) => `
+        <div class="step ${i < eb.step ? 'step--done' : i === eb.step ? 'step--active' : ''}">
+          <div class="step-num">${i < eb.step ? ic('check',11) : i+1}</div>
+          <div class="step-label">${l}</div>
+        </div>`).join('')}
+    </div>`;
+
+  let body = '';
+
+  if (eb.step === 0) {
+    const allReqDone = BOOKING_CHECKLIST.filter(i=>i.required).every(i=>i.check(state));
+    body = `
+      <div class="card-title mb-4">${ic('list-checks',18)} Eligibility Checklist</div>
+      <div class="info-banner info-banner--blue mb-4">${ic('info',16)} <span>Both required items must be complete before you can book the service elevator.</span></div>
+      <div class="checklist mb-4">
+        ${BOOKING_CHECKLIST.map(item => {
+          const ok = item.check(state);
+          return `
+            <div class="checklist-item ${ok ? 'checklist-item--done' : ''}">
+              <div class="check-icon ${ok ? 'check-icon--done' : ''}">${ok ? ic('check',12) : ''}</div>
+              <div style="flex:1"><div class="check-label">${item.label}</div></div>
+              <span class="req-tag req-tag--${item.required ? 'required' : 'optional'}">${item.required ? 'Required' : 'Optional'}</span>
+            </div>`;
+        }).join('')}
+      </div>
+      <div class="info-banner info-banner--yellow mb-4">
+        ${ic('clock',16)} <span><strong>How long does moving in take?</strong> For a 1–2 bedroom apartment, one 3-hour window is usually enough. For 3BR+ units, book two consecutive slots. Our windows: 8–11am, 11am–2pm, 2–5pm.</span>
+      </div>
+      <button class="btn btn--primary" ${allReqDone ? '' : 'disabled'} onclick="bookingNext()">
+        ${ic('arrow-right',15)} Proceed to Date Selection
+      </button>`;
+
+  } else if (eb.step === 1) {
+    const dates = [24,25,26,27,28,29,30].map((d, i) => ({
+      d, dow: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],
+      myDate: d === 28, disabled: d === 26
+    }));
+    body = `
+      <div class="card-title mb-4">${ic('calendar',18)} Select Move-In Date</div>
+      <div class="date-grid">
+        ${dates.map(dt => `
+          <button class="date-btn ${dt.disabled?'date-btn--disabled':''} ${dt.myDate&&!dt.disabled?'date-btn--booked':''} ${eb.selectedDate===dt.d?'date-btn--selected':''}"
+            onclick="${dt.disabled ? '' : 'selectBookingDate('+dt.d+')'}" ${dt.disabled ? 'disabled' : ''}>
+            <span class="date-btn-dow">${dt.dow}</span>
+            <span class="date-btn-day">${dt.d}</span>
+            <span style="font-size:9px;margin-top:2px;font-weight:700;color:var(--text-3)">Mar</span>
+            ${dt.myDate ? '<span style="font-size:9px;color:var(--green);font-weight:800">My Date</span>' : ''}
+          </button>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
+        <button class="btn btn--primary" ${eb.selectedDate ? '' : 'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Choose Time Slot</button>
+      </div>`;
+
+  } else if (eb.step === 2) {
+    const slots = [
+      { id:'morning',   time:'8am – 11am',  taken:false },
+      { id:'midday',    time:'11am – 2pm',  taken:true  },
+      { id:'afternoon', time:'2pm – 5pm',   taken:false },
+    ];
+    body = `
+      <div class="card-title mb-4">${ic('clock',18)} Select Time Slot — Mar ${eb.selectedDate || 28}</div>
+      <div class="info-banner info-banner--yellow mb-4">
+        ${ic('alert-triangle',16)} <span>One service elevator available. Slots are exclusive — no other move-in can share. Need more time? Book two consecutive slots.</span>
+      </div>
+      <div class="slot-grid mb-4">
+        ${slots.map(slot => `
+          <button class="slot-btn ${slot.taken?'slot-btn--taken':''} ${eb.selectedSlot===slot.id?'slot-btn--selected':''}"
+            onclick="${slot.taken ? '' : 'selectBookingSlot(\''+slot.id+'\')'}" ${slot.taken ? 'disabled' : ''}>
+            <span class="slot-time">${slot.time}</span>
+            <span class="slot-duration">3 hours</span>
+            <span style="font-size:10px;font-weight:600;${slot.taken?'color:var(--red)':'color:var(--green)'}">${slot.taken ? 'Taken' : 'Available'}</span>
+          </button>`).join('')}
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
+        <button class="btn btn--primary" ${eb.selectedSlot ? '' : 'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Review & Confirm</button>
+      </div>`;
+
   } else {
-    const map = { dashboard:renderStaffDashboard, 'coi-review':renderStaffCOIReview, schedule:renderStaffSchedule, residents:renderStaffResidents };
-    contentFn = map[state.staffScreen] || renderStaffDashboard;
+    const slotLabel = { morning:'8am – 11am', midday:'11am – 2pm', afternoon:'2pm – 5pm' };
+    body = `
+      <div class="confirm-box mb-4">
+        <div class="confirm-icon">${ic('check-circle',28)}</div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:6px">Elevator Booked!</div>
+        <div style="color:var(--text-2);font-size:13.5px">Your service elevator reservation is confirmed.</div>
+      </div>
+      <div class="booking-detail-list mb-4">
+        <div class="booking-detail-row">${ic('hash',16)} <span>Confirmation #</span><strong>ELV-2847</strong></div>
+        <div class="booking-detail-row">${ic('building-2',16)} <span>Building</span><strong>${mi.building}</strong></div>
+        <div class="booking-detail-row">${ic('map-pin',16)} <span>Unit</span><strong>${mi.unit} · Floor ${mi.floor}</strong></div>
+        <div class="booking-detail-row">${ic('calendar',16)} <span>Date</span><strong>March ${eb.selectedDate||28}, 2026</strong></div>
+        <div class="booking-detail-row">${ic('clock',16)} <span>Time</span><strong>${slotLabel[eb.selectedSlot||'morning']}</strong></div>
+        <div class="booking-detail-row">${ic('arrow-up-down',16)} <span>Elevator</span><strong>Service Elevator B — Floor ${mi.floor} reserved</strong></div>
+      </div>
+      <div class="info-banner info-banner--blue">
+        ${ic('info',16)} <span>Confirmation email sent. Please arrive 10 min early to check in with the concierge. Moving trucks: Loading Zone B on the south side.</span>
+      </div>`;
   }
+
+  return `
+    <div class="page-header">
+      <div class="page-title">Service Elevator Booking</div>
+      <div class="page-subtitle">Reserve the service elevator for your move-in day</div>
+    </div>
+    <div class="card">${stepper}${body}</div>`;
+}
+
+function renderMovingInUtilities() {
+  const ut = state.movingin.utilities;
+  return `
+    <div class="page-header">
+      <div class="page-title">Utilities Setup</div>
+      <div class="page-subtitle">Configure services for Unit ${state.movingin.unit}</div>
+    </div>
+    <div class="info-banner info-banner--blue mb-4">
+      ${ic('info',16)} <span><strong>All-electric building.</strong> No gas service in this building — your stove, oven, and heating all run on electricity (NYC Local Law 154). Setup utilities at least 3 business days before move-in.</span>
+    </div>
+    <div class="utility-list mb-4">
+      ${Object.entries(ut).map(([key, u]) => {
+        const iconName = key === 'electric' ? 'zap' : 'wifi';
+        const label    = key === 'electric' ? 'Electric' : 'Internet';
+        const cls      = key === 'electric' ? 'electric' : 'internet';
+        const statusCls   = { complete:'green', scheduled:'blue', in_progress:'yellow', not_started:'gray' }[u.status] || 'gray';
+        const statusLabel = { complete:'Complete', scheduled:'Scheduled', in_progress:'In Progress', not_started:'Not Started' }[u.status] || u.status;
+        return `
+          <div class="utility-row ${u.status !== 'not_started' ? 'utility-row--active' : ''}">
+            <div class="utility-icon utility-icon--${cls}">${ic(iconName,22)}</div>
+            <div class="utility-info">
+              <div class="utility-name">${label}</div>
+              <div class="utility-detail">${u.provider||'Not configured'}${u.accountNum?' · '+u.accountNum:u.scheduledDate?' · Install: '+u.scheduledDate:''}</div>
+            </div>
+            ${badge(statusLabel, statusCls)}
+          </div>`;
+      }).join('')}
+    </div>
+    <div class="card">
+      <div class="card-title mb-3">${ic('info',18)} Utilities at ${state.movingin.building}</div>
+      <div class="flex-col gap-3">
+        <div class="info-banner info-banner--yellow">
+          ${ic('zap',16)} <span><strong>Electricity:</strong> ConEd manages local delivery infrastructure. You can stay with ConEd as your energy supplier or switch to an ESCO for a different rate. Delivery is the same either way.</span>
+        </div>
+        <div class="info-banner info-banner--blue">
+          ${ic('wifi',16)} <span><strong>Internet:</strong> The building has pre-run fiber in every unit. Two providers are available: <strong>Xfinity</strong> and <strong>Verizon Fios</strong>. Book your installation 3–5 days before move-in.</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════
+   CURRENT RESIDENT SCREENS
+══════════════════════════════════════════════════ */
+
+function renderCurrentFeed() {
+  const cr = state.current;
+  const iconColor = { package:'blue', wrench:'orange', calendar:'accent', truck:'yellow', shield:'green' };
+
+  return `
+    <div class="page-header">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="page-title">${ic('bell',22)} Notifications</div>
+          <div class="page-subtitle">${cr.unreadCount > 0 ? `${cr.unreadCount} unread` : 'All caught up'}</div>
+        </div>
+        ${cr.unreadCount > 0 ? `<button class="btn btn--ghost btn--sm" onclick="markAllRead()">${ic('check-check',14)} Mark all read</button>` : ''}
+      </div>
+    </div>
+    <div class="notif-list">
+      ${cr.notifications.map(n => `
+        <div class="notif-item ${n.read ? '' : 'notif-item--unread'}">
+          <div class="notif-icon notif-icon--${iconColor[n.iconName] || 'accent'}">${ic(n.iconName,18)}</div>
+          <div class="notif-content">
+            <div class="notif-title">${n.title}</div>
+            <div class="notif-body">${n.body}</div>
+            <div class="notif-time">${ic('clock',11)} ${n.time}</div>
+          </div>
+          ${!n.read ? badge('New','accent') : ''}
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderCurrentCalendar() {
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('calendar',22)} Building Calendar</div>
+      <div class="page-subtitle">Events, move-ins, and maintenance for The Meridian</div>
+    </div>
+    ${renderCalendar('view')}`;
+}
+
+function renderCurrentPayments() {
+  const bills = state.current.payments.bills;
+  const due   = bills.filter(b => b.status === 'due').reduce((s, b) => s + b.amount, 0);
+  const upcoming = bills.filter(b => b.status === 'upcoming').reduce((s, b) => s + b.amount, 0);
+  const statusLabel = { due:'Due Soon', paid:'Paid', upcoming:'Upcoming', overdue:'Overdue' };
+  const statusCls   = { due:'yellow',  paid:'green',  upcoming:'gray',    overdue:'red' };
+
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('credit-card',22)} Payments</div>
+      <div class="page-subtitle">All charges for Unit ${state.current.unit}</div>
+    </div>
+
+    <div class="pay-summary">
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.8px;font-weight:700;color:var(--text-2);margin-bottom:6px">Due This Month</div>
+        <div class="pay-amount">${fmt$(due)}</div>
+        <div class="pay-due-info">${ic('alert-triangle',12)} 2 bills pending · Due by Mar 28</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <button class="btn btn--primary btn--lg" onclick="alert('Payment processing would go here')">
+          ${ic('credit-card',18)} Pay All Due — ${fmt$(due)}
+        </button>
+        <div style="font-size:12px;color:var(--text-2)">${fmt$(upcoming)} upcoming next month</div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header">
+        <div class="card-title">${ic('receipt',18)} Monthly Charges</div>
+      </div>
+      <div class="pay-list">
+        ${bills.map(bill => `
+          <div class="pay-row pay-row--${bill.status}">
+            <div class="pay-icon pay-icon--${bill.cls}">${ic(bill.iconName,22)}</div>
+            <div class="pay-info">
+              <div class="pay-name">${bill.label}</div>
+              <div class="pay-provider">${ic('building-2',11)} ${bill.provider}</div>
+            </div>
+            <div class="pay-right">
+              <div class="pay-amount-sm">${fmt$(bill.amount)}</div>
+              <div class="pay-due-date">Due ${bill.due}</div>
+              <div class="pay-auto">${bill.autoPay ? ic('repeat',10)+' Auto-pay on' : ic('alert-circle',10)+' Manual'}</div>
+            </div>
+            ${badge(statusLabel[bill.status], statusCls[bill.status])}
+            ${bill.status === 'due' ? `<button class="btn btn--primary btn--sm" onclick="alert('Redirecting to payment…')">${ic('credit-card',13)} Pay</button>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="pay-history-title">${ic('clock',18)} Payment History — February 2026</div>
+      <div class="pay-history-list">
+        ${[
+          { name:'Electric',          provider:'ConEd',        amount:87.30,  date:'Feb 25', auto:false },
+          { name:'Internet & Cable',  provider:'Xfinity',      amount:69.99,  date:'Feb 28', auto:true  },
+          { name:'Building Amenity',  provider:'The Meridian', amount:350.00, date:'Feb 1',  auto:true  },
+          { name:'Parking — Spot 42', provider:'The Meridian', amount:275.00, date:'Feb 1',  auto:true  },
+          { name:'Storage Unit S14',  provider:'The Meridian', amount:55.00,  date:'Feb 1',  auto:true  },
+        ].map(h => `
+          <div class="pay-history-row">
+            ${ic('check-circle',14)}
+            <span class="pay-history-name">${h.name} <span class="text-muted text-xs">· ${h.provider}</span></span>
+            <span class="pay-history-amount">${fmt$(h.amount)}</span>
+            <span class="pay-history-date">${h.date}${h.auto?' · Auto':''}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderCurrentSettings() {
+  const prefs = state.current.prefs;
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('settings',22)} Notification Preferences</div>
+      <div class="page-subtitle">Control what you hear about for Unit ${state.current.unit}</div>
+    </div>
+    <div class="card">
+      <div class="setting-group">
+        <div class="setting-group-title">Move-In Activity</div>
+        ${[
+          { key:'myFloor',    label:'My Floor Activity',    sub:'Move-ins and move-outs on Floor '+state.current.floor },
+          { key:'adjFloor',   label:'Adjacent Floors',      sub:'Activity on floors 13 and 15' },
+          { key:'allBuilding',label:'All Building Activity', sub:'All move-ins and major events building-wide' },
+        ].map(s => `
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">${s.label}</div><div class="setting-sub">${s.sub}</div></div>
+            <button class="toggle ${prefs[s.key]?'toggle--on':''}" onclick="togglePref('${s.key}')"></button>
+          </div>`).join('')}
+      </div>
+      <div class="setting-group">
+        <div class="setting-group-title">Building Alerts</div>
+        ${[
+          { key:'maintenance', label:'Maintenance Notices', sub:'HVAC, elevators, utilities outages' },
+          { key:'events',      label:'Building Events',     sub:'Social events, amenity bookings, community news' },
+        ].map(s => `
+          <div class="setting-row">
+            <div class="setting-info"><div class="setting-label">${s.label}</div><div class="setting-sub">${s.sub}</div></div>
+            <button class="toggle ${prefs[s.key]?'toggle--on':''}" onclick="togglePref('${s.key}')"></button>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════
+   BUILDING VISUALIZATION
+══════════════════════════════════════════════════ */
+
+function renderBuildingView(roleCtx) {
+  roleCtx = roleCtx || state.role;
+  const myUnit  = roleCtx === 'movingin' ? state.movingin.unit  : roleCtx === 'current' ? state.current.unit  : null;
+  const myFloor = roleCtx === 'movingin' ? state.movingin.floor : roleCtx === 'current' ? state.current.floor : null;
+  const selected = state.buildingState.selectedFloor;
+  const LETTERS  = ['A','B','C','D','E','F'];
+
+  // Build floor rows top-to-bottom (24 down to 1)
+  const facadeRows = [];
+  for (let f = 24; f >= 1; f--) {
+    const units   = BUILDING_FLOORS[f] || {};
+    const windows = LETTERS.map(l => {
+      const uid = `${f}${l}`;
+      const u   = units[uid];
+      if (!u) return 'vacant';
+      if (myUnit === uid) return 'you';
+      return u.status === 'moving-in' ? 'moving-in' : u.status === 'occupied' ? 'occupied' : 'vacant';
+    });
+    facadeRows.push({ f, windows, isMine: f === myFloor });
+  }
+
+  const legend = `
+    <div class="bv-legend">
+      <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--occupied"></div>Occupied</div>
+      <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--vacant"></div>Vacant</div>
+      <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--moving-in"></div>Moving In</div>
+      ${myUnit ? '<div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--you"></div>Your Unit</div>' : ''}
+    </div>`;
+
+  const facade = `
+    <div class="bv-facade-panel">
+      <div class="bv-penthouse">
+        <div class="bv-penthouse-label">The Meridian</div>
+        <div class="bv-building-name">24 Floors · 144 Units</div>
+      </div>
+      <div class="bv-floors-list">
+        ${facadeRows.map(row => `
+          <div class="bv-floor ${selected===row.f?'bv-floor--selected':''} ${row.isMine&&selected!==row.f?'bv-floor--mine':''}"
+               onclick="selectBuildingFloor(${row.f})">
+            <span class="bv-floor-num">${row.f}</span>
+            <div class="bv-windows">${row.windows.map(w=>`<div class="bv-win bv-win--${w}"></div>`).join('')}</div>
+            ${row.isMine ? '<span class="bv-floor-tag">You</span>' : ''}
+          </div>`).join('')}
+      </div>
+      <div class="bv-entrance"><div class="bv-entrance-label">Entrance</div></div>
+    </div>`;
+
+  // Detail panel
+  let detail = '';
+  if (!selected) {
+    let occ = 0, vac = 0, mov = 0;
+    for (let f = 1; f <= 24; f++) {
+      LETTERS.forEach(l => {
+        const u = (BUILDING_FLOORS[f]||{})[`${f}${l}`];
+        if (!u) return;
+        if (u.status === 'occupied') occ++;
+        else if (u.status === 'moving-in') mov++;
+        else vac++;
+      });
+    }
+    const pct = Math.round(occ / (occ+vac+mov) * 100);
+    detail = `
+      <div class="bv-overview">
+        <div style="color:var(--text-3);margin-bottom:14px">${ic('mouse-pointer-2',22)}</div>
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">Select a Floor</div>
+        <div style="font-size:13px;color:var(--text-2);margin-bottom:24px">Click any floor on the facade to explore its units</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:340px;margin:0 auto;text-align:center">
+          <div style="background:var(--surface);border:1px solid rgba(99,102,241,0.3);border-radius:var(--radius);padding:14px">
+            <div style="font-size:28px;font-weight:800;color:var(--accent-h)">${occ}</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">Occupied</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius);padding:14px">
+            <div style="font-size:28px;font-weight:800;color:var(--yellow)">${mov}</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">Moving In</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+            <div style="font-size:28px;font-weight:800;color:var(--text)">${pct}%</div>
+            <div style="font-size:11px;color:var(--text-2);margin-top:2px">Occupancy</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    const floorUnits  = BUILDING_FLOORS[selected] || {};
+    const isMyFloor   = selected === myFloor;
+    const canSeeName  = roleCtx === 'staff' || isMyFloor;
+
+    const unitCards = LETTERS.map(l => {
+      const uid  = `${selected}${l}`;
+      const u    = floorUnits[uid] || { status:'vacant', name:null };
+      const isMe = myUnit === uid;
+
+      let displayName = '';
+      if (isMe) displayName = roleCtx === 'movingin' ? state.movingin.name : state.current.name;
+      else if (canSeeName && u.name) displayName = u.name;
+      else if (u.status === 'occupied') displayName = 'Resident';
+
+      const subText = isMe ? (roleCtx === 'movingin' ? 'Moving in Mar 28' : `Floor ${myFloor}`) :
+        u.status === 'moving-in' ? `Moving in ${u.moveIn||'soon'}` :
+        (roleCtx === 'staff' && u.since) ? `Since ${u.since}` :
+        u.status === 'vacant' ? 'Available' : '';
+
+      const cardCls = isMe ? 'you' : u.status;
+
+      return `
+        <div class="bv-unit-card bv-unit-card--${cardCls}">
+          <div class="bv-unit-num">${uid}</div>
+          <div class="bv-unit-name">${displayName || (u.status==='vacant'?'Vacant':'—')}</div>
+          <div class="bv-unit-sub">
+            ${badge(u.status==='occupied'?'Occupied':u.status==='moving-in'?'Moving In':'Vacant', u.status==='occupied'?'accent':u.status==='moving-in'?'yellow':'gray')}
+            ${subText ? `<div style="margin-top:5px;font-size:11px;color:var(--text-2)">${subText}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    const complaintHtml = (roleCtx === 'current' || roleCtx === 'movingin') ? renderComplaintSection(selected) : '';
+
+    detail = `
+      <div class="bv-detail-header">
+        <div>
+          <div class="bv-detail-title">Floor ${selected}</div>
+          <div style="color:var(--text-2);font-size:13px;margin-top:2px">${isMyFloor?'Your floor · ':''}6 units${roleCtx!=='staff'&&!isMyFloor?' · Names hidden for privacy':''}</div>
+        </div>
+        <button class="btn btn--ghost btn--sm" onclick="selectBuildingFloor(${selected})">${ic('x',13)} Close</button>
+      </div>
+      <div class="bv-unit-grid">${unitCards}</div>
+      ${complaintHtml}`;
+  }
+
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('building-2',22)} Building Map</div>
+      <div class="page-subtitle">The Meridian — Interactive floor & unit visualization</div>
+    </div>
+    ${legend}
+    <div class="bv-wrap">
+      ${facade}
+      <div class="bv-detail-panel">${detail}</div>
+    </div>`;
+}
+
+function renderComplaintSection(floor) {
+  const bs = state.buildingState;
+  if (bs.complaintSent) {
+    return `
+      <div class="info-banner info-banner--green mt-4">
+        ${ic('check-circle',16)} <span><strong>Issue reported!</strong> Building management will respond within 1–2 business days. Reference #REP-${floor}-${Math.floor(seededFloat(floor)*9000+1000)}</span>
+      </div>`;
+  }
+  if (bs.showComplaint) {
+    return `
+      <div class="card mt-4">
+        <div class="card-title mb-3">${ic('flag',18)} Report an Issue</div>
+        <div class="complaint-form">
+          <div><div class="form-label">Issue Type</div>
+            <select class="form-select">
+              <option>Noise Complaint</option><option>Maintenance Request</option>
+              <option>Elevator Issue</option><option>Common Area Problem</option>
+              <option>Package / Delivery Issue</option><option>Other</option>
+            </select></div>
+          <div><div class="form-label">Location</div>
+            <select class="form-select">
+              <option>Floor ${floor} — Common Area</option>
+              <option>My Unit (${state.current.unit || state.movingin.unit})</option>
+              <option>Hallway / Corridor</option><option>Elevator</option><option>Lobby</option>
+            </select></div>
+          <div><div class="form-label">Description</div>
+            <textarea class="form-textarea" placeholder="Describe the issue in detail…"></textarea></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn--primary" onclick="submitComplaint()">${ic('send',14)} Submit</button>
+            <button class="btn btn--ghost" onclick="cancelComplaint()">${ic('x',14)} Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="mt-4">
+      <button class="btn btn--ghost" onclick="showComplaintForm()">${ic('flag',15)} Report an Issue</button>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════
+   STAFF SCREENS
+══════════════════════════════════════════════════ */
+
+function renderStaffDashboard() {
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('layout-dashboard',22)} Operations Dashboard</div>
+      <div class="page-subtitle">The Meridian · ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card stat-card--accent">
+        <div class="stat-icon stat-icon--accent">${ic('package',18)}</div>
+        <div class="stat-value" style="color:var(--accent-h)">6</div>
+        <div class="stat-label">Move-ins this month</div>
+      </div>
+      <div class="stat-card stat-card--yellow">
+        <div class="stat-icon stat-icon--yellow">${ic('file-text',18)}</div>
+        <div class="stat-value" style="color:var(--yellow)">3</div>
+        <div class="stat-label">COI reviews pending</div>
+      </div>
+      <div class="stat-card stat-card--green">
+        <div class="stat-icon stat-icon--green">${ic('users',18)}</div>
+        <div class="stat-value" style="color:var(--green)">112</div>
+        <div class="stat-label">Occupied units</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--blue">${ic('door-open',18)}</div>
+        <div class="stat-value">14</div>
+        <div class="stat-label">Vacant units</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card">
+        <div class="card-title mb-3">${ic('calendar',18)} Upcoming Move-Ins</div>
+        ${[
+          { date:'Mar 25', unit:'7A',  name:'Maria Santos',  ok:true  },
+          { date:'Mar 26', unit:'11F', name:'James Lee',     ok:false },
+          { date:'Mar 28', unit:'14B', name:'Alex Johnson',  ok:true  },
+          { date:'Mar 28', unit:'3B',  name:'Chris Park',    ok:true  },
+          { date:'Mar 30', unit:'22C', name:'David Kim',     ok:true  },
+        ].map(m => `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-2)">
+            <div style="width:42px;text-align:center">
+              <div style="font-size:10px;color:var(--text-3);font-weight:700;text-transform:uppercase">${m.date.split(' ')[0]}</div>
+              <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1">${m.date.split(' ')[1]}</div>
+            </div>
+            <div style="flex:1"><div style="font-weight:600;font-size:13.5px">${m.name}</div><div style="font-size:12px;color:var(--text-2)">Unit ${m.unit}</div></div>
+            ${badge(m.ok ? 'Confirmed' : 'Awaiting COI', m.ok ? 'green' : 'yellow')}
+          </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title mb-3">${ic('shield',18)} Recent COI Activity</div>
+        ${[
+          { name:'Alex Johnson',  unit:'14B', label:'Under Review', cls:'yellow' },
+          { name:'Maria Santos',  unit:'7A',  label:'Approved',     cls:'green'  },
+          { name:'Chris Park',    unit:'3B',  label:'Approved',     cls:'green'  },
+          { name:'James Lee',     unit:'11F', label:'Not Uploaded', cls:'gray'   },
+          { name:'David Kim',     unit:'22C', label:'Under Review', cls:'yellow' },
+        ].map(c => `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-2)">
+            <div class="avatar avatar--indigo" style="width:28px;height:28px;font-size:10px">${c.name.split(' ').map(n=>n[0]).join('')}</div>
+            <div style="flex:1"><div style="font-weight:600;font-size:13px">${c.name}</div><div style="font-size:11.5px;color:var(--text-2)">Unit ${c.unit}</div></div>
+            ${badge(c.label, c.cls)}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderStaffCOI() {
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('file-check',22)} COI Review</div>
+      <div class="page-subtitle">3 documents awaiting review</div>
+    </div>
+    <div class="coi-table">
+      ${[
+        { name:'Alex Johnson', unit:'14B', floor:14, uploaded:'Mar 22', file:'COI_Alex_Johnson_2026.pdf',  status:'pending' },
+        { name:'David Kim',    unit:'22C', floor:22, uploaded:'Mar 22', file:'Insurance_DK_March2026.pdf', status:'pending' },
+        { name:'James Lee',    unit:'11F', floor:11, uploaded:null,     file:null,                          status:'awaiting'},
+      ].map(c => `
+        <div class="coi-row ${c.status==='pending'?'coi-row--pending':''}">
+          <div class="avatar avatar--indigo">${c.name.split(' ').map(n=>n[0]).join('')}</div>
+          <div class="coi-resident" style="flex:1">
+            <div class="coi-resident-name">${c.name}</div>
+            <div class="coi-resident-unit">Unit ${c.unit} · Floor ${c.floor}</div>
+          </div>
+          ${c.file ? `
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.file}</div>
+              <div style="font-size:11.5px;color:var(--text-2)">Uploaded ${c.uploaded}</div>
+            </div>
+            <div class="action-row">
+              <button class="btn btn--green btn--sm">${ic('check',13)} Approve</button>
+              <button class="btn btn--danger btn--sm">${ic('x',13)} Reject</button>
+              <button class="btn btn--ghost btn--sm">${ic('download',13)}</button>
+            </div>` :
+            `<div style="font-size:12.5px;color:var(--text-3);flex:1">No document uploaded yet</div>
+             ${badge('Awaiting Upload','gray')}`}
+        </div>`).join('')}
+    </div>
+    <div class="card mt-4">
+      <div class="card-title mb-3">${ic('check-circle',18)} Recently Approved</div>
+      ${[
+        { name:'Maria Santos', unit:'7A', date:'Mar 21' },
+        { name:'Chris Park',   unit:'3B', date:'Mar 20' },
+        { name:'Emma Wilson',  unit:'5D', date:'Mar 19' },
+      ].map(c => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-2)">
+          <div class="avatar avatar--green" style="width:28px;height:28px;font-size:10px">${c.name.split(' ').map(n=>n[0]).join('')}</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:13px">${c.name} · Unit ${c.unit}</div><div style="font-size:11.5px;color:var(--text-2)">Approved ${c.date}</div></div>
+          ${badge('Approved','green')}
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderStaffSchedule() {
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('calendar',22)} Move-In Schedule</div>
+      <div class="page-subtitle">Service elevator reservations for March 2026</div>
+    </div>
+    ${renderCalendar('staff')}`;
+}
+
+function renderStaffResidents() {
+  const LETTERS = ['A','B','C','D','E','F'];
+  const occupied = [];
+  for (let f = 24; f >= 1; f--) {
+    LETTERS.forEach(l => {
+      const uid = `${f}${l}`;
+      const u   = (BUILDING_FLOORS[f]||{})[uid];
+      if (u && u.name) occupied.push({ uid, floor:f, ...u });
+    });
+  }
+  const shown = occupied.slice(0, 24);
+
+  return `
+    <div class="page-header">
+      <div class="page-title">${ic('users',22)} Residents</div>
+      <div class="page-subtitle">${occupied.length} total · Showing ${shown.length}</div>
+    </div>
+    <div class="resident-table">
+      ${shown.map(r => `
+        <div class="resident-row">
+          <div class="avatar avatar--indigo" style="width:34px;height:34px;font-size:11px">${r.name.split(' ').map(n=>n[0]).join('')}</div>
+          <div class="resident-info">
+            <div class="resident-name">${r.name}</div>
+            <div class="resident-unit">Unit ${r.uid} · Floor ${r.floor}${r.since?' · Since '+r.since:''}</div>
+          </div>
+          <div class="resident-badges">
+            ${badge(r.status==='moving-in'?'Moving In '+r.moveIn:'Occupied', r.status==='moving-in'?'yellow':'accent')}
+            ${r.status==='moving-in'?badge('COI Pending','gray'):badge('COI OK','green')}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════
+   CALENDAR COMPONENT
+══════════════════════════════════════════════════ */
+
+function renderCalendar(mode) {
+  const cs = state.calendarState;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const titleStr = cs.view === 'month' ? `${MONTHS[cs.month-1]} ${cs.year}` :
+                   cs.view === 'week'  ? `Mar ${cs.weekStart}–${cs.weekStart+6}, ${cs.year}` :
+                   `Mar ${cs.selectedDay||28}, ${cs.year}`;
+
+  const header = `
+    <div class="cal-header">
+      <div class="cal-nav-group">
+        <button class="cal-nav-btn" onclick="calPrev()">${ic('chevron-left',14)}</button>
+        <button class="cal-nav-btn" onclick="calNext()">${ic('chevron-right',14)}</button>
+      </div>
+      <div style="font-size:16px;font-weight:800;color:var(--text)">${titleStr}</div>
+      <div class="view-tabs">
+        ${['month','week','day'].map(v=>`<button class="view-tab ${cs.view===v?'view-tab--active':''}" onclick="setCalView('${v}')">${v[0].toUpperCase()+v.slice(1)}</button>`).join('')}
+      </div>
+    </div>`;
+
+  const body = cs.view === 'month' ? renderMonthView() : cs.view === 'week' ? renderWeekView() : renderDayView();
+  return header + body;
+}
+
+function renderMonthView() {
+  const cs = state.calendarState;
+  const DOWS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const firstDow = new Date(cs.year, cs.month-1, 1).getDay();
+  const pad = (firstDow + 6) % 7;
+  const days = new Date(cs.year, cs.month, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < pad; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return `
+    <div class="cal-dow-header">${DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join('')}</div>
+    <div class="cal-month-grid">
+      ${cells.map(d => {
+        if (!d) return `<div class="cal-day cal-day--other"></div>`;
+        const key    = `${cs.year}-${String(cs.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const events = BUILDING_EVENTS[key] || [];
+        const today  = d === 28 && cs.month === 3;
+        return `
+          <div class="cal-day ${today?'cal-day--today':''}" onclick="selectDay(${d})">
+            <div class="cal-day-num">${d}</div>
+            ${events.map(e=>`<div class="cal-event cal-event--${e.color}">${e.title}</div>`).join('')}
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderWeekView() {
+  const cs   = state.calendarState;
+  const ws   = cs.weekStart;
+  const DOWS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const days = Array.from({length:7},(_,i) => ws + i);
+  const HOURS= [8,9,10,11,12,13,14,15,16,17,18];
+
+  const headerCells = days.map((d,i) => {
+    const key  = `2026-03-${String(d).padStart(2,'0')}`;
+    const has  = !!(BUILDING_EVENTS[key] && BUILDING_EVENTS[key].length);
+    const today= d === 28;
+    return `<div class="cal-week-day-header ${today?'cal-week-day-header--today':''} ${has&&!today?'cal-week-day-header--hasevents':''}">
+      <div class="cal-week-day-name">${DOWS[i]}</div>
+      <div class="cal-week-day-num">${d}</div>
+    </div>`;
+  }).join('');
+
+  const rows = HOURS.map(h => `
+    <tr>
+      <td class="cal-week-time-cell">${h}:00</td>
+      ${days.map(d => {
+        const key    = `2026-03-${String(d).padStart(2,'0')}`;
+        const events = (BUILDING_EVENTS[key]||[]).filter(e => e.timeH === h);
+        return `<td class="cal-week-cell ${d===28?'cal-week-cell--today':''}">
+          ${events.map(e=>`<div class="cal-week-event cal-event--${e.color}">${e.title}</div>`).join('')}
+        </td>`;
+      }).join('')}
+    </tr>`).join('');
+
+  return `
+    <table class="cal-week-grid" cellspacing="0">
+      <tr><td class="cal-week-time-header"></td>${headerCells}</tr>
+      ${rows}
+    </table>`;
+}
+
+function renderDayView() {
+  const cs  = state.calendarState;
+  const day = cs.selectedDay || 28;
+  const key = `2026-03-${String(day).padStart(2,'0')}`;
+  const evs = BUILDING_EVENTS[key] || [];
+  const HOURS = [7,8,9,10,11,12,13,14,15,16,17,18,19];
+
+  return `
+    <div class="cal-day-view">
+      ${HOURS.map(h => {
+        const ev = evs.filter(e => e.timeH === h);
+        return `
+          <div class="cal-day-row">
+            <div class="cal-day-time">${h}:00</div>
+            <div class="cal-day-slot ${ev.length?'cal-day-slot--occupied':''}">
+              ${ev.map(e=>`<div class="cal-day-event cal-event--${e.color}"><strong>${e.title}</strong> · ${e.desc} · ${e.time}</div>`).join('')}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ─── Render Entry Point ─── */
+function render() {
+  const fns = {
+    movingin: {
+      dashboard: renderMovingInDashboard,
+      coi:       renderMovingInCOI,
+      elevator:  renderMovingInElevator,
+      utilities: renderMovingInUtilities,
+      building:  () => renderBuildingView('movingin'),
+    },
+    current: {
+      feed:     renderCurrentFeed,
+      calendar: renderCurrentCalendar,
+      payments: renderCurrentPayments,
+      building: () => renderBuildingView('current'),
+      settings: renderCurrentSettings,
+    },
+    staff: {
+      dashboard:  renderStaffDashboard,
+      'coi-review': renderStaffCOI,
+      schedule:   renderStaffSchedule,
+      building:   () => renderBuildingView('staff'),
+      residents:  renderStaffResidents,
+    },
+  };
+
+  const screenKey = state.role === 'movingin' ? state.movingInScreen :
+                    state.role === 'current'  ? state.currentResidentScreen :
+                    state.staffScreen;
+
+  const contentFn = (fns[state.role] || {})[screenKey] || renderStaffDashboard;
+
   document.getElementById('app').innerHTML = renderLayout(contentFn);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 render();
