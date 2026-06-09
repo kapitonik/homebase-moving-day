@@ -177,6 +177,13 @@ function switchRole(role) {
   render();
 }
 
+function goHome() {
+  if (state.role === 'movingin')  state.movingInScreen        = 'dashboard';
+  if (state.role === 'current')   state.currentResidentScreen = 'feed';
+  if (state.role === 'staff')     state.staffScreen           = 'dashboard';
+  render();
+}
+
 function selectBuildingFloor(f) {
   state.buildingState.selectedFloor  = state.buildingState.selectedFloor === f ? null : f;
   state.buildingState.showComplaint  = false;
@@ -286,7 +293,7 @@ function renderLayout(contentFn) {
   return `
     <div class="layout">
       <header class="topbar">
-        <div class="topbar-brand">
+        <div class="topbar-brand" onclick="goHome()">
           <img src="img/logo.png" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;border-radius:6px" alt="HomeBase">
           HomeBase
         </div>
