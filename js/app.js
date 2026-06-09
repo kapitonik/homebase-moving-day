@@ -287,7 +287,7 @@ function renderLayout(contentFn) {
     <div class="layout">
       <header class="topbar">
         <div class="topbar-brand">
-          <img src="img/logo.svg" style="width:28px;height:28px;object-fit:contain;flex-shrink:0" alt="HomeBase">
+          <img src="img/logo.png" style="width:28px;height:28px;object-fit:contain;flex-shrink:0;border-radius:6px" alt="HomeBase">
           HomeBase
         </div>
         <div class="topbar-roles">${roleButtons}</div>
