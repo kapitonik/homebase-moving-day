@@ -21,12 +21,12 @@ const BUILDING_EVENTS = {
 
 /* ─── Booking Checklist ─── */
 const BOOKING_CHECKLIST = [
-  { id:'coi',      required:true,  label:'Certificate of Insurance approved',      check: s => s.movingin.coi.status === 'approved' },
+  { id:'coi',      required:true,  label:'Certificate of Insurance approved',      check: s => s.coiApprovals[s.movingin.unit] === 'approved' },
   { id:'deposit',  required:true,  label:'Security deposit cleared',               check: ()=> true },
   { id:'movers',   required:false, label:'Moving company or self-move arranged',   check: ()=> false },
   { id:'utilities',required:false, label:'Utilities setup initiated',              check: s => s.movingin.utilities.electric.status !== 'not_started' },
-  { id:'keys',     required:false, label:'Key pickup appointment scheduled',       check: ()=> false },
-  { id:'parking',  required:false, label:'Moving truck parking arranged',          check: ()=> false },
+  { id:'keys',     required:false, label:'Key pickup appointment scheduled',       check: s => !!s.elevatorBooking.keyPickupSlot },
+  { id:'parking',  required:false, label:'Moving truck parking arranged',          check: s => !!s.elevatorBooking.parkingSlot },
 ];
 
 /* ─── Providers (no gas — all-electric high-rise) ─── */
@@ -111,7 +111,7 @@ const state = {
     name:'Alex Johnson', unit:'14B', building:'The Meridian', floor:14,
     moveInDate:'March 28, 2026',
     coi:      { status:'under_review', fileName:'Certificate_of_Insurance_2026.pdf', uploadedAt:'Mar 22, 2026' },
-    elevator: { status:'booked', date:'Mar 28, 2026', slot:'8am–11am', confirmNum:'ELV-2847' },
+    elevator: { status:'not_booked' },
     utilities: {
       electric: { status:'complete',  provider:'ConEd',   accountNum:'CON-847291' },
       internet: { status:'scheduled', provider:'Xfinity', scheduledDate:'Mar 27, 2026' },
@@ -146,7 +146,8 @@ const state = {
   },
 
   calendarState:   { view:'month', year:2026, month:3, weekStart:23, selectedDay:28 },
-  elevatorBooking: { step:0, selectedDate:28, selectedSlot:'morning' },
+  elevatorBooking: { step:0, selectedDate:null, selectedDuration:null, selectedSlot:null, keyPickupSlot:null, parkingSlot:null },
+  coiApprovals:    {},
   buildingState:   { selectedFloor:null, showComplaint:false, complaintSent:false },
 };
 
@@ -198,8 +199,26 @@ function cancelComplaint()    { state.buildingState.showComplaint = false; rende
 function bookingNext() { state.elevatorBooking.step++; render(); }
 function bookingBack() { state.elevatorBooking.step--; render(); }
 
-function selectBookingDate(d) { state.elevatorBooking.selectedDate = d; render(); }
-function selectBookingSlot(s) { state.elevatorBooking.selectedSlot = s; render(); }
+function selectBookingDate(d)  { state.elevatorBooking.selectedDate = d; render(); }
+function selectBookingSlot(s)  { state.elevatorBooking.selectedSlot = s; render(); }
+function selectDuration(d)     { state.elevatorBooking.selectedDuration = d; state.elevatorBooking.selectedSlot = null; render(); }
+function selectKeySlot(s)      { state.elevatorBooking.keyPickupSlot = s; render(); }
+function selectParking(p)      { state.elevatorBooking.parkingSlot = p; render(); }
+function approveCoI(unit)      { state.coiApprovals[unit] = 'approved'; render(); }
+function rejectCoI(unit)       { state.coiApprovals[unit] = 'rejected'; render(); }
+function confirmElevatorBooking() {
+  const eb = state.elevatorBooking;
+  const SLOT_LABELS = { s1:'8am–11am', s2:'11am–2pm', s3:'2pm–5pm', l1:'8am–2pm', l2:'11am–5pm' };
+  state.movingin.elevator = {
+    status: 'booked',
+    date: 'March ' + eb.selectedDate + ', 2026',
+    slot: SLOT_LABELS[eb.selectedSlot] || '8am–11am',
+    duration: eb.selectedDuration || '3h',
+    confirmNum: 'ELV-2847',
+  };
+  state.elevatorBooking.step = 4;
+  render();
+}
 
 function togglePref(key) { state.current.prefs[key] = !state.current.prefs[key]; render(); }
 function markAllRead()   { state.current.notifications.forEach(n => n.read = true); state.current.unreadCount = 0; render(); }
@@ -328,8 +347,9 @@ function renderMovingInDashboard() {
   const reqTotal= BOOKING_CHECKLIST.filter(i => i.required).length;
   const pct     = Math.round(done / total * 100);
 
-  const coiBadge = { approved:'green', under_review:'yellow', rejected:'red', not_started:'gray' }[mi.coi.status];
-  const coiLabel = { approved:'COI Approved', under_review:'Under Review', rejected:'Rejected', not_started:'Not Uploaded' }[mi.coi.status];
+  const coiIsApproved = state.coiApprovals[mi.unit] === 'approved';
+  const coiBadge = coiIsApproved ? 'green' : { under_review:'yellow', rejected:'red', not_started:'gray' }[mi.coi.status] || 'gray';
+  const coiLabel = coiIsApproved ? 'Approved' : { under_review:'Under Review', rejected:'Rejected', not_started:'Not Uploaded' }[mi.coi.status] || 'Pending';
 
   const utStatusCls   = s => ({ complete:'green', scheduled:'blue', in_progress:'yellow', not_started:'gray' })[s] || 'gray';
   const utStatusLabel = s => ({ complete:'Complete', scheduled:'Scheduled', in_progress:'In Progress', not_started:'Not Started' })[s] || s;
@@ -341,7 +361,7 @@ function renderMovingInDashboard() {
       <div class="hero-meta">
         <div class="hero-meta-item">${ic('map-pin',14)} Unit <strong>${mi.unit}</strong>, Floor ${mi.floor}</div>
         <div class="hero-meta-item">${ic('calendar',14)} <strong>${mi.moveInDate}</strong></div>
-        <div class="hero-meta-item">${ic('clock',14)} Elevator: <strong>${mi.elevator.slot}</strong></div>
+        <div class="hero-meta-item">${ic('clock',14)} Elevator: <strong>${mi.elevator.status === 'booked' ? mi.elevator.slot : 'Not booked yet'}</strong></div>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar" style="width:${pct}%"></div>
@@ -379,10 +399,13 @@ function renderMovingInDashboard() {
       <div class="card">
         <div class="card-header" style="margin-bottom:12px">
           <div class="card-title">${ic('arrow-up-down',18)} Elevator</div>
-          ${badge('Booked', 'green')}
+          ${badge(mi.elevator.status === 'booked' ? 'Booked' : 'Not Booked', mi.elevator.status === 'booked' ? 'green' : 'gray')}
         </div>
-        <div class="info-banner info-banner--green mb-3">${ic('check-circle',14)} <span><strong>${mi.elevator.date}</strong> · ${mi.elevator.slot}</span></div>
-        <button class="btn btn--ghost btn--sm w-full" onclick="navigate('elevator')">${ic('arrow-right',14)} View Booking</button>
+        ${mi.elevator.status === 'booked'
+          ? `<div class="info-banner info-banner--green mb-3">${ic('check-circle',14)} <span><strong>${mi.elevator.date}</strong> · ${mi.elevator.slot}</span></div>`
+          : `<div class="info-banner info-banner--yellow mb-3">${ic('alert-triangle',14)} <span>${coiIsApproved ? 'COI approved — you can now book the elevator.' : 'Waiting for COI approval before booking.'}</span></div>`
+        }
+        <button class="btn btn--ghost btn--sm w-full" onclick="navigate('elevator')">${ic('arrow-right',14)} ${mi.elevator.status === 'booked' ? 'View Booking' : 'Book Now'}</button>
       </div>
     </div>
 
@@ -466,10 +489,36 @@ function renderMovingInCOI() {
 }
 
 function renderMovingInElevator() {
-  const eb = state.elevatorBooking;
-  const mi = state.movingin;
+  const eb  = state.elevatorBooking;
+  const mi  = state.movingin;
+  const coiApproved = state.coiApprovals[mi.unit] === 'approved';
 
-  const stepLabels = ['Checklist','Date','Time Slot','Confirm'];
+  const SLOTS_3H = [
+    { id:'s1', time:'8am – 11am', taken:false },
+    { id:'s2', time:'11am – 2pm', taken:true  },
+    { id:'s3', time:'2pm – 5pm',  taken:false },
+  ];
+  const SLOTS_6H = [
+    { id:'l1', time:'8am – 2pm',  taken:false },
+    { id:'l2', time:'11am – 5pm', taken:false },
+  ];
+  const KEY_SLOTS = [
+    { id:'k1', day:'Day Before · Mar 27', time:'2:00pm' },
+    { id:'k2', day:'Day Before · Mar 27', time:'4:00pm' },
+    { id:'k3', day:'Move-In Day · Mar 28', time:'7:30am' },
+    { id:'k4', day:'Move-In Day · Mar 28', time:'8:00am' },
+  ];
+  const PARKING = [
+    { id:'za', label:'Loading Zone A', sub:'4 spots · South entrance',    available:true  },
+    { id:'zb', label:'Loading Zone B', sub:'2 spots · Main entrance',     available:true  },
+    { id:'zc', label:'Loading Zone C', sub:'Currently reserved',          available:false },
+    { id:'st', label:'Street Permit',  sub:'Free 4-hour permit from office', available:true },
+  ];
+  const SLOT_LABELS = { s1:'8am–11am', s2:'11am–2pm', s3:'2pm–5pm', l1:'8am–2pm', l2:'11am–5pm' };
+  const KEY_LABELS  = { k1:'Mar 27 · 2:00pm', k2:'Mar 27 · 4:00pm', k3:'Mar 28 · 7:30am', k4:'Mar 28 · 8:00am' };
+  const PARK_LABELS = { za:'Loading Zone A', zb:'Loading Zone B', st:'Street Permit' };
+
+  const stepLabels = ['Checklist','Date','Time','Add-ons','Confirm'];
   const stepper = `
     <div class="stepper">
       ${stepLabels.map((l, i) => `
@@ -485,7 +534,13 @@ function renderMovingInElevator() {
     const allReqDone = BOOKING_CHECKLIST.filter(i=>i.required).every(i=>i.check(state));
     body = `
       <div class="card-title mb-4">${ic('list-checks',18)} Eligibility Checklist</div>
-      <div class="info-banner info-banner--blue mb-4">${ic('info',16)} <span>Both required items must be complete before you can book the service elevator.</span></div>
+      ${!coiApproved ? `
+        <div class="info-banner info-banner--yellow mb-4">
+          ${ic('clock',16)} <span><strong>COI pending staff review.</strong> Your building manager must approve it before you can book. Switch to the Staff tab → COI Review to simulate approval.</span>
+        </div>` : `
+        <div class="info-banner info-banner--green mb-4">
+          ${ic('check-circle',16)} <span><strong>COI approved.</strong> All required items are cleared — you can proceed to book.</span>
+        </div>`}
       <div class="checklist mb-4">
         ${BOOKING_CHECKLIST.map(item => {
           const ok = item.check(state);
@@ -497,8 +552,8 @@ function renderMovingInElevator() {
             </div>`;
         }).join('')}
       </div>
-      <div class="info-banner info-banner--yellow mb-4">
-        ${ic('clock',16)} <span><strong>How long does moving in take?</strong> For a 1–2 bedroom apartment, one 3-hour window is usually enough. For 3BR+ units, book two consecutive slots. Our windows: 8–11am, 11am–2pm, 2–5pm.</span>
+      <div class="info-banner info-banner--blue mb-4">
+        ${ic('info',16)} <span><strong>Choosing your window:</strong> 3 hours is enough for a 1–2BR move. For 3BR+ or large furniture, pick a 6-hour block.</span>
       </div>
       <button class="btn btn--primary" ${allReqDone ? '' : 'disabled'} onclick="bookingNext()">
         ${ic('arrow-right',15)} Proceed to Date Selection
@@ -506,69 +561,121 @@ function renderMovingInElevator() {
 
   } else if (eb.step === 1) {
     const dates = [24,25,26,27,28,29,30].map((d, i) => ({
-      d, dow: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],
+      d, dow:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],
       myDate: d === 28, disabled: d === 26
     }));
     body = `
       <div class="card-title mb-4">${ic('calendar',18)} Select Move-In Date</div>
-      <div class="date-grid">
+      <div class="date-grid mb-4">
         ${dates.map(dt => `
-          <button class="date-btn ${dt.disabled?'date-btn--disabled':''} ${dt.myDate&&!dt.disabled?'date-btn--booked':''} ${eb.selectedDate===dt.d?'date-btn--selected':''}"
-            onclick="${dt.disabled ? '' : 'selectBookingDate('+dt.d+')'}" ${dt.disabled ? 'disabled' : ''}>
+          <button class="date-btn ${dt.disabled?'date-btn--disabled':''} ${dt.myDate&&eb.selectedDate!==dt.d?'date-btn--booked':''} ${eb.selectedDate===dt.d?'date-btn--selected':''}"
+            onclick="${dt.disabled?'':'selectBookingDate('+dt.d+')'}" ${dt.disabled?'disabled':''}>
             <span class="date-btn-dow">${dt.dow}</span>
             <span class="date-btn-day">${dt.d}</span>
             <span style="font-size:9px;margin-top:2px;font-weight:700;color:var(--text-3)">Mar</span>
-            ${dt.myDate ? '<span style="font-size:9px;color:var(--green);font-weight:800">My Date</span>' : ''}
-          </button>`).join('')}
-      </div>
-      <div style="display:flex;gap:10px;margin-top:16px">
-        <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
-        <button class="btn btn--primary" ${eb.selectedDate ? '' : 'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Choose Time Slot</button>
-      </div>`;
-
-  } else if (eb.step === 2) {
-    const slots = [
-      { id:'morning',   time:'8am – 11am',  taken:false },
-      { id:'midday',    time:'11am – 2pm',  taken:true  },
-      { id:'afternoon', time:'2pm – 5pm',   taken:false },
-    ];
-    body = `
-      <div class="card-title mb-4">${ic('clock',18)} Select Time Slot — Mar ${eb.selectedDate || 28}</div>
-      <div class="info-banner info-banner--yellow mb-4">
-        ${ic('alert-triangle',16)} <span>One service elevator available. Slots are exclusive — no other move-in can share. Need more time? Book two consecutive slots.</span>
-      </div>
-      <div class="slot-grid mb-4">
-        ${slots.map(slot => `
-          <button class="slot-btn ${slot.taken?'slot-btn--taken':''} ${eb.selectedSlot===slot.id?'slot-btn--selected':''}"
-            onclick="${slot.taken ? '' : 'selectBookingSlot(\''+slot.id+'\')'}" ${slot.taken ? 'disabled' : ''}>
-            <span class="slot-time">${slot.time}</span>
-            <span class="slot-duration">3 hours</span>
-            <span style="font-size:10px;font-weight:600;${slot.taken?'color:var(--red)':'color:var(--green)'}">${slot.taken ? 'Taken' : 'Available'}</span>
+            ${dt.myDate?'<span style="font-size:9px;color:var(--green);font-weight:800">My Date</span>':''}
           </button>`).join('')}
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
-        <button class="btn btn--primary" ${eb.selectedSlot ? '' : 'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Review & Confirm</button>
+        <button class="btn btn--primary" ${eb.selectedDate?'':'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Choose Time</button>
+      </div>`;
+
+  } else if (eb.step === 2) {
+    const slots = eb.selectedDuration === '6h' ? SLOTS_6H : SLOTS_3H;
+    body = `
+      <div class="card-title mb-4">${ic('clock',18)} Duration & Time — Mar ${eb.selectedDate||28}</div>
+      <div class="mb-4">
+        <div style="font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:8px">Elevator window</div>
+        <div style="display:flex;gap:8px;margin-bottom:${eb.selectedDuration==='6h'?'10':'0'}px">
+          <button class="btn ${eb.selectedDuration==='3h'?'btn--primary':'btn--secondary'}" onclick="selectDuration('3h')">${ic('clock',15)} 3 Hours</button>
+          <button class="btn ${eb.selectedDuration==='6h'?'btn--primary':'btn--secondary'}" onclick="selectDuration('6h')">${ic('timer',15)} 6 Hours</button>
+        </div>
+        ${eb.selectedDuration==='6h'?`<div class="info-banner info-banner--blue mt-3">${ic('info',14)} <span>Recommended for 3BR+ units or large furniture. Includes the full morning or afternoon block.</span></div>`:''}
+      </div>
+      ${eb.selectedDuration?`
+        <div class="mb-4">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:8px">Available slots</div>
+          <div class="slot-grid">
+            ${slots.map(slot=>`
+              <button class="slot-btn ${slot.taken?'slot-btn--taken':''} ${eb.selectedSlot===slot.id?'slot-btn--selected':''}"
+                onclick="${slot.taken?'':'selectBookingSlot(\''+slot.id+'\')'}" ${slot.taken?'disabled':''}>
+                <span class="slot-time">${slot.time}</span>
+                <span class="slot-duration">${eb.selectedDuration}</span>
+                <span style="font-size:10px;font-weight:600;${slot.taken?'color:var(--red)':'color:var(--green)'}">${slot.taken?'Taken':'Available'}</span>
+              </button>`).join('')}
+          </div>
+        </div>`:''}
+      <div style="display:flex;gap:10px">
+        <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
+        <button class="btn btn--primary" ${eb.selectedSlot?'':'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Add-ons</button>
+      </div>`;
+
+  } else if (eb.step === 3) {
+    body = `
+      <div class="card-title mb-4">${ic('plus-circle',18)} Optional Add-ons</div>
+
+      <div class="mb-5">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">${ic('key',15)} Key Pickup</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:3px">Schedule when to collect your keys from the concierge</div>
+          </div>
+          <span class="badge badge--gray">Optional</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${KEY_SLOTS.map(k=>`
+            <button class="slot-btn ${eb.keyPickupSlot===k.id?'slot-btn--selected':''}" style="align-items:flex-start;padding:12px;gap:3px"
+              onclick="selectKeySlot('${k.id}')">
+              <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.4px">${k.day}</span>
+              <span class="slot-time" style="font-size:15px">${k.time}</span>
+              <span style="font-size:11px;color:var(--text-2)">Concierge Desk</span>
+            </button>`).join('')}
+        </div>
+      </div>
+
+      <div class="mb-5">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div>
+            <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">${ic('truck',15)} Moving Truck Parking</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:3px">Reserve a loading zone for your moving truck</div>
+          </div>
+          <span class="badge badge--gray">Optional</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${PARKING.map(p=>`
+            <button class="slot-btn ${!p.available?'slot-btn--taken':''} ${eb.parkingSlot===p.id?'slot-btn--selected':''}" style="align-items:flex-start;padding:12px;gap:3px"
+              onclick="${p.available?'selectParking(\''+p.id+'\')':''}" ${!p.available?'disabled':''}>
+              <span class="slot-time" style="font-size:13px">${p.label}</span>
+              <span style="font-size:11px;color:${p.available?'var(--text-2)':'var(--red)'}">${p.sub}</span>
+            </button>`).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
+        <button class="btn btn--primary" onclick="confirmElevatorBooking()">${ic('check',15)} Confirm Booking</button>
       </div>`;
 
   } else {
-    const slotLabel = { morning:'8am – 11am', midday:'11am – 2pm', afternoon:'2pm – 5pm' };
     body = `
       <div class="confirm-box mb-4">
         <div class="confirm-icon">${ic('check-circle',28)}</div>
-        <div style="font-size:20px;font-weight:800;margin-bottom:6px">Elevator Booked!</div>
-        <div style="color:var(--text-2);font-size:13.5px">Your service elevator reservation is confirmed.</div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:6px">All Set!</div>
+        <div style="color:var(--text-2);font-size:13.5px">Your move-in day is fully planned.</div>
       </div>
       <div class="booking-detail-list mb-4">
-        <div class="booking-detail-row">${ic('hash',16)} <span>Confirmation #</span><strong>ELV-2847</strong></div>
+        <div class="booking-detail-row">${ic('hash',16)} <span>Confirmation #</span><strong>${mi.elevator.confirmNum||'ELV-2847'}</strong></div>
         <div class="booking-detail-row">${ic('building-2',16)} <span>Building</span><strong>${mi.building}</strong></div>
         <div class="booking-detail-row">${ic('map-pin',16)} <span>Unit</span><strong>${mi.unit} · Floor ${mi.floor}</strong></div>
         <div class="booking-detail-row">${ic('calendar',16)} <span>Date</span><strong>March ${eb.selectedDate||28}, 2026</strong></div>
-        <div class="booking-detail-row">${ic('clock',16)} <span>Time</span><strong>${slotLabel[eb.selectedSlot||'morning']}</strong></div>
-        <div class="booking-detail-row">${ic('arrow-up-down',16)} <span>Elevator</span><strong>Service Elevator B — Floor ${mi.floor} reserved</strong></div>
+        <div class="booking-detail-row">${ic('clock',16)} <span>Elevator</span><strong>${SLOT_LABELS[eb.selectedSlot]||'8am–11am'} · ${eb.selectedDuration||'3h'}</strong></div>
+        <div class="booking-detail-row">${ic('arrow-up-down',16)} <span>Service Elevator</span><strong>Elevator B — Floor ${mi.floor} reserved</strong></div>
+        ${eb.keyPickupSlot?`<div class="booking-detail-row">${ic('key',16)} <span>Key Pickup</span><strong>${KEY_LABELS[eb.keyPickupSlot]}</strong></div>`:''}
+        ${eb.parkingSlot?`<div class="booking-detail-row">${ic('truck',16)} <span>Truck Parking</span><strong>${PARK_LABELS[eb.parkingSlot]||eb.parkingSlot}</strong></div>`:''}
       </div>
       <div class="info-banner info-banner--blue">
-        ${ic('info',16)} <span>Confirmation email sent. Please arrive 10 min early to check in with the concierge. Moving trucks: Loading Zone B on the south side.</span>
+        ${ic('info',16)} <span>Confirmation sent to your email. Arrive 10 min early to check in with the concierge.</span>
       </div>`;
   }
 
@@ -1027,11 +1134,13 @@ function renderStaffCOI() {
     </div>
     <div class="coi-table">
       ${[
-        { name:'Alex Johnson', unit:'14B', floor:14, uploaded:'Mar 22', file:'COI_Alex_Johnson_2026.pdf',  status:'pending' },
-        { name:'David Kim',    unit:'22C', floor:22, uploaded:'Mar 22', file:'Insurance_DK_March2026.pdf', status:'pending' },
-        { name:'James Lee',    unit:'11F', floor:11, uploaded:null,     file:null,                          status:'awaiting'},
-      ].map(c => `
-        <div class="coi-row ${c.status==='pending'?'coi-row--pending':''}">
+        { name:'Alex Johnson', unit:'14B', floor:14, uploaded:'Mar 22', file:'COI_Alex_Johnson_2026.pdf'  },
+        { name:'David Kim',    unit:'22C', floor:22, uploaded:'Mar 22', file:'Insurance_DK_March2026.pdf' },
+        { name:'James Lee',    unit:'11F', floor:11, uploaded:null,     file:null                         },
+      ].map(c => {
+        const approval = state.coiApprovals[c.unit];
+        return `
+        <div class="coi-row ${!approval && c.file ? 'coi-row--pending' : ''}">
           <div class="avatar avatar--indigo">${c.name.split(' ').map(n=>n[0]).join('')}</div>
           <div class="coi-resident" style="flex:1">
             <div class="coi-resident-name">${c.name}</div>
@@ -1042,14 +1151,17 @@ function renderStaffCOI() {
               <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.file}</div>
               <div style="font-size:11.5px;color:var(--text-2)">Uploaded ${c.uploaded}</div>
             </div>
-            <div class="action-row">
-              <button class="btn btn--green btn--sm">${ic('check',13)} Approve</button>
-              <button class="btn btn--danger btn--sm">${ic('x',13)} Reject</button>
-              <button class="btn btn--ghost btn--sm">${ic('download',13)}</button>
-            </div>` :
+            ${approval === 'approved' ? badge('Approved','green') :
+              approval === 'rejected' ? badge('Rejected','red') :
+              `<div class="action-row">
+                <button class="btn btn--green btn--sm" onclick="approveCoI('${c.unit}')">${ic('check',13)} Approve</button>
+                <button class="btn btn--danger btn--sm" onclick="rejectCoI('${c.unit}')">${ic('x',13)} Reject</button>
+                <button class="btn btn--ghost btn--sm">${ic('download',13)}</button>
+              </div>`}` :
             `<div style="font-size:12.5px;color:var(--text-3);flex:1">No document uploaded yet</div>
              ${badge('Awaiting Upload','gray')}`}
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>
     <div class="card mt-4">
       <div class="card-title mb-3">${ic('check-circle',18)} Recently Approved</div>
