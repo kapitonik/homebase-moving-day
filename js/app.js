@@ -57,44 +57,55 @@ function seededName(seed) {
 }
 
 const KNOWN_UNITS = {
-  '14A': { name:'Sarah Chen',    status:'occupied',  since:'Jan 2024' },
-  '14B': { name:'Alex Johnson',  status:'moving-in', moveIn:'Mar 28' },
-  '14C': { name:null,            status:'vacant' },
-  '14D': { name:'Marcus Webb',   status:'occupied',  since:'Mar 2023' },
-  '14E': { name:'Jennifer Walsh',status:'occupied',  since:'Aug 2023' },
-  '14F': { name:'Robert Tanaka', status:'occupied',  since:'Dec 2023' },
-  '7A':  { name:'Maria Santos',  status:'moving-in', moveIn:'Mar 25' },
-  '7B':  { name:'Linda Park',    status:'occupied',  since:'Jun 2023' },
-  '7C':  { name:'David Chen',    status:'occupied',  since:'Sep 2023' },
-  '7D':  { name:null,            status:'vacant' },
-  '7E':  { name:'Sofia Reyes',   status:'occupied',  since:'Feb 2024' },
-  '7F':  { name:null,            status:'vacant' },
-  '11F': { name:'James Lee',     status:'moving-in', moveIn:'Mar 26' },
-  '22C': { name:'David Kim',     status:'moving-in', moveIn:'Mar 30' },
-  '3B':  { name:'Chris Park',    status:'moving-in', moveIn:'Mar 28' },
-  '5D':  { name:'Emma Wilson',   status:'moving-in', moveIn:'Apr 1' },
+  '24A': { name:'Victoria Harmon',  status:'occupied',  since:'Mar 2022', ph:true },
+  '23A': { name:'James Whitfield',  status:'occupied',  since:'Sep 2021', ph:true },
+  '23B': { name:null,               status:'vacant',    ph:true },
+  '14A': { name:'Sarah Chen',       status:'occupied',  since:'Jan 2024' },
+  '14B': { name:'Alex Johnson',     status:'moving-in', moveIn:'Mar 28' },
+  '14C': { name:null,               status:'vacant' },
+  '14D': { name:'Marcus Webb',      status:'occupied',  since:'Mar 2023' },
+  '14E': { name:'Jennifer Walsh',   status:'occupied',  since:'Aug 2023' },
+  '14F': { name:'Robert Tanaka',    status:'occupied',  since:'Dec 2023' },
+  '7A':  { name:'Maria Santos',     status:'moving-in', moveIn:'Mar 25' },
+  '7B':  { name:'Linda Park',       status:'occupied',  since:'Jun 2023' },
+  '7C':  { name:'David Chen',       status:'occupied',  since:'Sep 2023' },
+  '7D':  { name:null,               status:'vacant' },
+  '7E':  { name:'Sofia Reyes',      status:'occupied',  since:'Feb 2024' },
+  '7F':  { name:null,               status:'vacant' },
+  '11D': { name:'James Lee',        status:'moving-in', moveIn:'Mar 26' },
+  '22C': { name:'David Kim',        status:'moving-in', moveIn:'Mar 30' },
+  '3B':  { name:'Chris Park',       status:'moving-in', moveIn:'Mar 28' },
+  '5D':  { name:'Emma Wilson',      status:'moving-in', moveIn:'Apr 1' },
 };
 
+/* Floor layout: PH=1 unit, floor 23=2 units, 20-22=4 units, 1-2=4 units, rest=6 */
+function getFloorLetters(f) {
+  if (f === 24) return ['A'];
+  if (f === 23) return ['A','B'];
+  if (f >= 20 || f <= 2) return ['A','B','C','D'];
+  return ['A','B','C','D','E','F'];
+}
+
 const BUILDING_FLOORS = (function() {
-  const LETTERS = ['A','B','C','D','E','F'];
-  const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Sep','Oct','Nov'];
-  const floors  = {};
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Sep','Oct','Nov'];
+  const floors = {};
   for (let f = 1; f <= 24; f++) {
+    const letters = getFloorLetters(f);
     const fu = {};
-    for (let li = 0; li < 6; li++) {
-      const letter = LETTERS[li];
-      const uid    = `${f}${letter}`;
-      if (KNOWN_UNITS[uid]) { fu[uid] = Object.assign({}, KNOWN_UNITS[uid]); continue; }
-      const seed = f * 6 + li;
+    letters.forEach((letter, li) => {
+      const uid = `${f}${letter}`;
+      if (KNOWN_UNITS[uid]) { fu[uid] = Object.assign({}, KNOWN_UNITS[uid]); return; }
+      const seed = f * 7 + li;
       const r    = seededFloat(seed);
-      if (r < 0.76) {
-        const mo  = MONTHS[Math.floor(seededFloat(seed + 100) * MONTHS.length)];
-        const yr  = seededFloat(seed + 200) > 0.5 ? '2024' : '2023';
+      const occ  = f >= 23 ? r < 0.9 : r < 0.76;
+      if (occ) {
+        const mo = MONTHS[Math.floor(seededFloat(seed + 100) * MONTHS.length)];
+        const yr = seededFloat(seed + 200) > 0.5 ? '2024' : '2023';
         fu[uid] = { name: seededName(seed), status:'occupied', since:`${mo} ${yr}` };
       } else {
         fu[uid] = { name:null, status:'vacant' };
       }
-    }
+    });
     floors[f] = fu;
   }
   return floors;
@@ -493,14 +504,19 @@ function renderMovingInElevator() {
   const mi  = state.movingin;
   const coiApproved = state.coiApprovals[mi.unit] === 'approved';
 
+  const DATE_AV = {
+    24:[true,true,true], 25:[false,true,true], 27:[true,true,true],
+    28:[true,false,true], 29:[true,true,true], 30:[true,true,false],
+  };
+  const av = DATE_AV[eb.selectedDate] || [true,true,true];
   const SLOTS_3H = [
-    { id:'s1', time:'8am – 11am', taken:false },
-    { id:'s2', time:'11am – 2pm', taken:true  },
-    { id:'s3', time:'2pm – 5pm',  taken:false },
+    { id:'s1', time:'8am – 11am', taken:!av[0] },
+    { id:'s2', time:'11am – 2pm', taken:!av[1] },
+    { id:'s3', time:'2pm – 5pm',  taken:!av[2] },
   ];
   const SLOTS_6H = [
-    { id:'l1', time:'8am – 2pm',  taken:false },
-    { id:'l2', time:'11am – 5pm', taken:false },
+    { id:'l1', time:'8am – 2pm',  taken:!av[0]||!av[1] },
+    { id:'l2', time:'11am – 5pm', taken:!av[1]||!av[2] },
   ];
   const KEY_SLOTS = [
     { id:'k1', day:'Day Before · Mar 27', time:'2:00pm' },
@@ -593,19 +609,26 @@ function renderMovingInElevator() {
         </div>
         ${eb.selectedDuration==='6h'?`<div class="info-banner info-banner--blue mt-3">${ic('info',14)} <span>Recommended for 3BR+ units or large furniture. Includes the full morning or afternoon block.</span></div>`:''}
       </div>
-      ${eb.selectedDuration?`
+      ${eb.selectedDuration?(()=>{
+        const allTaken = slots.every(s=>s.taken);
+        return `
         <div class="mb-4">
           <div style="font-size:12.5px;font-weight:600;color:var(--text-2);margin-bottom:8px">Available slots</div>
-          <div class="slot-grid">
-            ${slots.map(slot=>`
-              <button class="slot-btn ${slot.taken?'slot-btn--taken':''} ${eb.selectedSlot===slot.id?'slot-btn--selected':''}"
-                onclick="${slot.taken?'':'selectBookingSlot(\''+slot.id+'\')'}" ${slot.taken?'disabled':''}>
-                <span class="slot-time">${slot.time}</span>
-                <span class="slot-duration">${eb.selectedDuration}</span>
-                <span style="font-size:10px;font-weight:600;${slot.taken?'color:var(--red)':'color:var(--green)'}">${slot.taken?'Taken':'Available'}</span>
-              </button>`).join('')}
-          </div>
-        </div>`:''}
+          ${allTaken
+            ? `<div class="info-banner info-banner--red" style="background:var(--red-bg);border:1px solid rgba(239,68,68,0.25);color:var(--text-2)">
+                ${ic('calendar-x',16)} <span><strong style="color:var(--red)">No ${eb.selectedDuration} slots available on this date.</strong> Select a different date or switch to ${eb.selectedDuration==='6h'?'3-hour':'6-hour'} windows.</span>
+               </div>`
+            : `<div class="slot-grid">
+                ${slots.map(slot=>`
+                  <button class="slot-btn ${slot.taken?'slot-btn--taken':''} ${eb.selectedSlot===slot.id?'slot-btn--selected':''}"
+                    onclick="${slot.taken?'':'selectBookingSlot(\''+slot.id+'\')'}" ${slot.taken?'disabled':''}>
+                    <span class="slot-time">${slot.time}</span>
+                    <span class="slot-duration">${eb.selectedDuration}</span>
+                    <span style="font-size:10px;font-weight:600;${slot.taken?'color:var(--red)':'color:var(--green)'}">${slot.taken?'Taken':'Available'}</span>
+                  </button>`).join('')}
+               </div>`}
+        </div>`;
+      })():''}
       <div style="display:flex;gap:10px">
         <button class="btn btn--ghost" onclick="bookingBack()">${ic('arrow-left',15)} Back</button>
         <button class="btn btn--primary" ${eb.selectedSlot?'':'disabled'} onclick="bookingNext()">${ic('arrow-right',15)} Add-ons</button>
@@ -882,20 +905,26 @@ function renderBuildingView(roleCtx) {
   const myUnit  = roleCtx === 'movingin' ? state.movingin.unit  : roleCtx === 'current' ? state.current.unit  : null;
   const myFloor = roleCtx === 'movingin' ? state.movingin.floor : roleCtx === 'current' ? state.current.floor : null;
   const selected = state.buildingState.selectedFloor;
-  const LETTERS  = ['A','B','C','D','E','F'];
+
+  // Total unit count
+  let totalUnits = 0;
+  for (let f = 1; f <= 24; f++) totalUnits += getFloorLetters(f).length;
 
   // Build floor rows top-to-bottom (24 down to 1)
   const facadeRows = [];
   for (let f = 24; f >= 1; f--) {
+    const letters = getFloorLetters(f);
+    const isPH    = f >= 23;
     const units   = BUILDING_FLOORS[f] || {};
-    const windows = LETTERS.map(l => {
+    const windows = letters.map(l => {
       const uid = `${f}${l}`;
       const u   = units[uid];
-      if (!u) return 'vacant';
+      if (!u) return isPH ? 'ph-vacant' : 'vacant';
       if (myUnit === uid) return 'you';
+      if (isPH) return u.status === 'occupied' ? 'ph' : 'ph-vacant';
       return u.status === 'moving-in' ? 'moving-in' : u.status === 'occupied' ? 'occupied' : 'vacant';
     });
-    facadeRows.push({ f, windows, isMine: f === myFloor });
+    facadeRows.push({ f, windows, isMine: f === myFloor, isPH });
   }
 
   const legend = `
@@ -903,6 +932,7 @@ function renderBuildingView(roleCtx) {
       <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--occupied"></div>Occupied</div>
       <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--vacant"></div>Vacant</div>
       <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--moving-in"></div>Moving In</div>
+      <div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--ph"></div>Penthouse</div>
       ${myUnit ? '<div class="bv-legend-item"><div class="bv-legend-dot bv-legend-dot--you"></div>Your Unit</div>' : ''}
     </div>`;
 
@@ -910,15 +940,15 @@ function renderBuildingView(roleCtx) {
     <div class="bv-facade-panel">
       <div class="bv-penthouse">
         <div class="bv-penthouse-label">The Meridian</div>
-        <div class="bv-building-name">24 Floors · 144 Units</div>
+        <div class="bv-building-name">24 Floors · ${totalUnits} Units</div>
       </div>
       <div class="bv-floors-list">
         ${facadeRows.map(row => `
-          <div class="bv-floor ${selected===row.f?'bv-floor--selected':''} ${row.isMine&&selected!==row.f?'bv-floor--mine':''}"
+          <div class="bv-floor ${row.isPH?'bv-floor--ph':''} ${selected===row.f?'bv-floor--selected':''} ${row.isMine&&selected!==row.f?'bv-floor--mine':''}"
                onclick="selectBuildingFloor(${row.f})">
-            <span class="bv-floor-num">${row.f}</span>
+            <span class="bv-floor-num ${row.isPH?'bv-floor-num--ph':''}">${row.f===24?'PH':row.f===23?'23':row.f}</span>
             <div class="bv-windows">${row.windows.map(w=>`<div class="bv-win bv-win--${w}"></div>`).join('')}</div>
-            ${row.isMine ? '<span class="bv-floor-tag">You</span>' : ''}
+            ${row.isMine ? '<span class="bv-floor-tag">You</span>' : row.isPH ? '<span class="bv-floor-tag bv-floor-tag--ph">PH</span>' : ''}
           </div>`).join('')}
       </div>
       <div class="bv-entrance"><div class="bv-entrance-label">Entrance</div></div>
@@ -929,7 +959,7 @@ function renderBuildingView(roleCtx) {
   if (!selected) {
     let occ = 0, vac = 0, mov = 0;
     for (let f = 1; f <= 24; f++) {
-      LETTERS.forEach(l => {
+      getFloorLetters(f).forEach(l => {
         const u = (BUILDING_FLOORS[f]||{})[`${f}${l}`];
         if (!u) return;
         if (u.status === 'occupied') occ++;
@@ -959,19 +989,23 @@ function renderBuildingView(roleCtx) {
         </div>
       </div>`;
   } else {
-    const floorUnits  = BUILDING_FLOORS[selected] || {};
-    const isMyFloor   = selected === myFloor;
-    const canSeeName  = roleCtx === 'staff' || isMyFloor;
+    const floorLetters = getFloorLetters(selected);
+    const floorUnits   = BUILDING_FLOORS[selected] || {};
+    const isMyFloor    = selected === myFloor;
+    const canSeeName   = roleCtx === 'staff' || isMyFloor;
+    const isPH         = selected >= 23;
+    const floorTitle   = selected === 24 ? 'Penthouse' : selected === 23 ? 'Floor 23 — Penthouse Level' : `Floor ${selected}`;
 
-    const unitCards = LETTERS.map(l => {
-      const uid  = `${selected}${l}`;
-      const u    = floorUnits[uid] || { status:'vacant', name:null };
-      const isMe = myUnit === uid;
+    const unitCards = floorLetters.map(l => {
+      const uid     = `${selected}${l}`;
+      const u       = floorUnits[uid] || { status:'vacant', name:null };
+      const isMe    = myUnit === uid;
+      const dispId  = selected === 24 ? 'Penthouse' : selected === 23 ? `PH-${l}` : uid;
 
       let displayName = '';
       if (isMe) displayName = roleCtx === 'movingin' ? state.movingin.name : state.current.name;
       else if (canSeeName && u.name) displayName = u.name;
-      else if (u.status === 'occupied') displayName = 'Resident';
+      else if (u.status === 'occupied') displayName = isPH ? 'Resident' : 'Resident';
 
       const subText = isMe ? (roleCtx === 'movingin' ? 'Moving in Mar 28' : `Floor ${myFloor}`) :
         u.status === 'moving-in' ? `Moving in ${u.moveIn||'soon'}` :
@@ -981,8 +1015,8 @@ function renderBuildingView(roleCtx) {
       const cardCls = isMe ? 'you' : u.status;
 
       return `
-        <div class="bv-unit-card bv-unit-card--${cardCls}">
-          <div class="bv-unit-num">${uid}</div>
+        <div class="bv-unit-card bv-unit-card--${cardCls} ${isPH?'bv-unit-card--ph':''}">
+          <div class="bv-unit-num" style="${isPH?'font-size:16px':''}"> ${dispId}</div>
           <div class="bv-unit-name">${displayName || (u.status==='vacant'?'Vacant':'—')}</div>
           <div class="bv-unit-sub">
             ${badge(u.status==='occupied'?'Occupied':u.status==='moving-in'?'Moving In':'Vacant', u.status==='occupied'?'accent':u.status==='moving-in'?'yellow':'gray')}
@@ -992,16 +1026,17 @@ function renderBuildingView(roleCtx) {
     }).join('');
 
     const complaintHtml = (roleCtx === 'current' || roleCtx === 'movingin') ? renderComplaintSection(selected) : '';
+    const cols = floorLetters.length <= 2 ? floorLetters.length : floorLetters.length <= 4 ? 2 : 3;
 
     detail = `
       <div class="bv-detail-header">
         <div>
-          <div class="bv-detail-title">Floor ${selected}</div>
-          <div style="color:var(--text-2);font-size:13px;margin-top:2px">${isMyFloor?'Your floor · ':''}6 units${roleCtx!=='staff'&&!isMyFloor?' · Names hidden for privacy':''}</div>
+          <div class="bv-detail-title">${floorTitle}</div>
+          <div style="color:var(--text-2);font-size:13px;margin-top:2px">${isMyFloor?'Your floor · ':''}${floorLetters.length} unit${floorLetters.length!==1?'s':''}${roleCtx!=='staff'&&!isMyFloor&&!isPH?' · Names hidden for privacy':''}</div>
         </div>
         <button class="btn btn--ghost btn--sm" onclick="selectBuildingFloor(${selected})">${ic('x',13)} Close</button>
       </div>
-      <div class="bv-unit-grid">${unitCards}</div>
+      <div class="bv-unit-grid" style="grid-template-columns:repeat(${cols},1fr)">${unitCards}</div>
       ${complaintHtml}`;
   }
 
@@ -1188,10 +1223,9 @@ function renderStaffSchedule() {
 }
 
 function renderStaffResidents() {
-  const LETTERS = ['A','B','C','D','E','F'];
   const occupied = [];
   for (let f = 24; f >= 1; f--) {
-    LETTERS.forEach(l => {
+    getFloorLetters(f).forEach(l => {
       const uid = `${f}${l}`;
       const u   = (BUILDING_FLOORS[f]||{})[uid];
       if (u && u.name) occupied.push({ uid, floor:f, ...u });
